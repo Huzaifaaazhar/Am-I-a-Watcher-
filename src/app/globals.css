@@ -1,0 +1,114 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Freely-licensed faces only (Bitter and JetBrains Mono are both OFL).
+ * No official or copyrighted title font is reproduced anywhere in this project -
+ * see the FAN ASSET SLOT in Chrome.tsx for where the builder drops one in.
+ */
+:root {
+  --font-display: "Bitter", "Roboto Slab", Georgia, "Times New Roman", serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+html,
+body {
+  height: 100%;
+  background: #07090a;
+  color: #c9c3b0;
+  overscroll-behavior: none;
+}
+
+body {
+  font-family: var(--font-mono);
+  /* The canvas owns all gestures; the page itself never scrolls. */
+  overflow: hidden;
+}
+
+::selection {
+  background: rgba(224, 184, 64, 0.32);
+}
+
+/* ------------------------------------------------------------ CRT texture */
+
+.crt-scanlines {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0) 0px,
+    rgba(0, 0, 0, 0) 2px,
+    rgba(0, 0, 0, 0.16) 3px,
+    rgba(0, 0, 0, 0.16) 4px
+  );
+}
+
+.crt-grain {
+  /* Static luminance noise, inlined as SVG so nothing is fetched at runtime. */
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='140' height='140' filter='url(%23n)' opacity='0.5'/></svg>");
+}
+
+.vignette {
+  background: radial-gradient(
+    ellipse at center,
+    rgba(0, 0, 0, 0) 48%,
+    rgba(0, 0, 0, 0.38) 80%,
+    rgba(0, 0, 0, 0.7) 100%
+  );
+}
+
+/* Faint green wash so even empty screen space reads as "temporal apparatus". */
+.moss-wash {
+  background: radial-gradient(
+    ellipse 70% 55% at 50% 62%,
+    rgba(31, 64, 48, 0.55) 0%,
+    rgba(7, 9, 10, 0) 70%
+  );
+}
+
+/* ------------------------------------------------------------- components */
+
+.panel {
+  background: linear-gradient(
+    to bottom,
+    rgba(13, 26, 20, 0.86),
+    rgba(7, 9, 10, 0.92)
+  );
+  border: 1px solid rgba(61, 122, 88, 0.35);
+  box-shadow:
+    inset 0 1px 0 rgba(142, 195, 162, 0.08),
+    0 12px 40px -18px rgba(0, 0, 0, 0.9);
+  backdrop-filter: blur(3px);
+}
+
+.hairline {
+  border-color: rgba(61, 122, 88, 0.3);
+}
+
+.text-glow-gold {
+  text-shadow: 0 0 12px rgba(224, 184, 64, 0.55);
+}
+
+.text-glow-moss {
+  text-shadow: 0 0 10px rgba(90, 156, 116, 0.5);
+}
+
+/* Ledger scrollbar, styled so the panel keeps its analog feel. */
+.ledger-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(61, 122, 88, 0.5) transparent;
+}
+.ledger-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.ledger-scroll::-webkit-scrollbar-thumb {
+  background: rgba(61, 122, 88, 0.5);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-flicker,
+  .animate-sweep,
+  .animate-pulse-gold,
+  .animate-stamp-in {
+    animation: none !important;
+  }
+}
