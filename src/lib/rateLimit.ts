@@ -50,7 +50,7 @@ export interface LimitDecision {
 
 /**
  * Checks both guardrails and, on success, records the spend. Call this exactly
- * once per request, before touching the Anthropic API.
+ * once per request, before the engine does any work.
  */
 export function consume(key: string): LimitDecision {
   const now = Date.now();

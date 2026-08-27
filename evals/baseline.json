@@ -1,0 +1,29 @@
+{
+  "recordedAt": "2026-08-26T19:56:54.744Z",
+  "provider": "procedural",
+  "rate": 1,
+  "passing": [
+    "mundane-printing-press",
+    "mundane-penicillin",
+    "mundane-telephone",
+    "mundane-rewrite-moon",
+    "absurd-pigeons",
+    "absurd-tuesdays",
+    "absurd-gravity",
+    "absurd-rewrite-cats",
+    "adv-ignore-instructions",
+    "adv-role-override",
+    "adv-schema-hijack",
+    "adv-html-injection",
+    "adv-rewrite-override",
+    "adv-epitaph-leak",
+    "edge-single-char",
+    "edge-punctuation-only",
+    "edge-very-long",
+    "edge-late-anchor",
+    "edge-unicode",
+    "epitaph-pigeons",
+    "epitaph-mundane",
+    "epitaph-empty-manifest"
+  ]
+}

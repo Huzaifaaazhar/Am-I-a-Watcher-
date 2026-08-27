@@ -21,8 +21,17 @@ Deferred on purpose, not forgotten:
 - **Pruned nodes are never garbage-collected.** They stay in `timeline.nodes`
   with `status: "pruned"` so the layout keeps its parent chain intact. Harmless
   for a session; would need sweeping for a long-lived tree.
-- **Rate-limit counters are in-process.** Fine locally, useless across
-  serverless instances. Redis or equivalent before any public deploy.
+- **Rate-limit counters are in-process.** Fine for one process, useless across
+  replicas. Redis or equivalent before scaling out.
+- **Metrics are per-process too.** Multiple replicas need an aggregator, or
+  Prometheus scraping each pod separately.
+- **The domain lexicons are hand-built.** They could be fitted from a corpus
+  instead - TF-IDF centroids over labelled historical text would widen coverage
+  well past the nine domains without changing the interface.
+- **The instability model has hand-set weights.** Transparent, but unfitted.
+  Given logged outcomes it could become a real regression.
+- **No tracing.** Logs and metrics are in; OpenTelemetry spans across the route
+  and the provider call would make a slow Ollama request explain itself.
 - **Strict CSP.** Nonce-based `script-src` would need middleware and would force
   every page dynamic. Worth revisiting if this ever ships publicly.
 - **Undo.** The ledger already records every action; making entries clickable to
@@ -30,9 +39,12 @@ Deferred on purpose, not forgotten:
   tactical.
 - **Branch collision at depth.** The golden-angle splay distributes branches
   well up to a few dozen; a real force-directed pass would hold up further.
-- **Prompt caching.** The system prompt is stable across every call and is
-  currently re-sent uncached. A cache breakpoint would cut cost noticeably if
-  usage ever grew.
+- **Grammar coverage.** Roughly 32 title templates across four tiers. Enough
+  that repeats are rare in a single recording, not enough for heavy use - the
+  templates are the cheapest thing in the project to extend.
+- **A Markov or n-gram layer** over a bureaucratic corpus could vary the
+  consequence phrasing beyond the fixed pool, while keeping the tier structure
+  that makes cascades escalate.
 
 ## Mechanics that might be fun
 

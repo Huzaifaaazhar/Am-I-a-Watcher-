@@ -1,178 +1,174 @@
 /**
  * Causality engine eval harness.
  *
- *   npm run eval              live calls against the real model
- *   npm run eval -- --offline no API calls; exercises normalize/validate/fallback
- *   npm run eval -- --json    machine-readable summary on stdout
+ *   npm run eval                          the configured provider (default: procedural)
+ *   npm run eval -- --provider=ollama     a local LLM, if one is running
+ *   npm run eval -- --json                machine-readable summary
+ *   npm run eval -- --update-baseline     record the current results as the baseline
  *
- * Exits non-zero when the schema-valid rate drops below THRESHOLD, so this
- * doubles as the prompt-drift guard: re-run it after any prompt change.
+ * No API key, no network (on the procedural path), so this runs in CI on every
+ * commit. Exits non-zero when the pass rate drops below THRESHOLD or when a
+ * case that passed in the recorded baseline now fails - the regression guard.
  */
 
-import { config } from "dotenv";
+import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
+import pino from "pino";
 
 import { CASES, GLOBAL_FORBIDDEN, type EvalCase } from "./cases";
-import {
-  LIMITS,
-  cannedCascade,
-  normalizeCascade,
-  normalizeEpitaph,
-  validateCascade,
-  validateEpitaph,
-  type Cascade,
-  type Epitaph,
-} from "../src/lib/schemas";
-import { generateCascade, generateEpitaph } from "../src/lib/causality";
+import { LIMITS, validateCascade, validateEpitaph } from "../src/lib/schemas";
+import { generateCascade, generateEpitaph, probeProviders } from "../src/lib/engine";
 
-config({ path: ".env.local", quiet: true });
-config({ quiet: true });
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+const BASELINE = path.join(HERE, "baseline.json");
 
-/** Fail the run below this schema-valid rate. */
+/** Fail the run below this pass rate. */
 const THRESHOLD = 0.95;
 
-const args = new Set(process.argv.slice(2));
-const OFFLINE = args.has("--offline");
-const AS_JSON = args.has("--json");
+const args = process.argv.slice(2);
+const has = (flag: string) => args.includes(flag);
+const valueOf = (name: string) =>
+  args.find((a) => a.startsWith(`--${name}=`))?.split("=")[1];
+
+const AS_JSON = has("--json");
+const UPDATE_BASELINE = has("--update-baseline");
+const PROVIDER = valueOf("provider");
+if (PROVIDER) process.env.CAUSALITY_PROVIDER = PROVIDER;
+
+// Engine logs are noise here; the harness does its own reporting.
+const log = pino({ level: "silent" });
 
 interface CaseResult {
   id: string;
   kind: string;
   mode: string;
   pass: boolean;
-  degraded: boolean;
+  /** True when the primary provider failed and procedural answered instead. */
+  fellBack: boolean;
+  provider: string;
   ms: number;
   errors: string[];
   sample: string;
 }
-
-const anchorYearOf = (c: EvalCase): number =>
-  c.mode === "epitaph" ? 0 : c.mode === "branch" ? c.anchorYear : c.anchorYear;
 
 /** Voice and leak checks that apply to every mode. */
 function checkText(text: string, extra: string[] = []): string[] {
   const errors: string[] = [];
   const lower = text.toLowerCase();
   for (const marker of GLOBAL_FORBIDDEN) {
-    if (lower.includes(marker.toLowerCase())) {
-      errors.push(`leaked marker: "${marker}"`);
-    }
+    if (lower.includes(marker.toLowerCase())) errors.push(`leaked marker: "${marker}"`);
   }
   for (const marker of extra) {
-    if (lower.includes(marker.toLowerCase())) {
-      errors.push(`forbidden content: "${marker}"`);
-    }
+    if (lower.includes(marker.toLowerCase())) errors.push(`forbidden content: "${marker}"`);
   }
   return errors;
 }
 
-/* ------------------------------------------------------------------ offline */
-
-/**
- * Offline mode replaces the model with adversarial fixtures, so the repair and
- * fail-closed paths are exercised on every run without spending a token.
- */
-function offlineCascade(c: EvalCase): { data: Cascade; degraded: boolean } {
-  const anchor = anchorYearOf(c);
-  // A response that is wrong in every repairable way at once.
-  const messy: Cascade = {
-    events: [
-      { year: anchor + 40, title: "Later event", consequence: "  spaced   out " },
-      { year: anchor - 10, title: "Before the anchor", consequence: "backwards" },
-      { year: anchor - 10, title: "Duplicate year", consequence: "collision" },
-      { year: anchor + 12, title: "T".repeat(120), consequence: "C".repeat(400) },
-      { year: anchor + 60, title: "Fifth", consequence: "ok" },
-      { year: anchor + 80, title: "Sixth must be dropped", consequence: "ok" },
-    ],
-    instability_delta: 9999,
-  };
-  const tidied = normalizeCascade(messy, anchor);
-  return validateCascade(tidied, anchor).ok
-    ? { data: tidied, degraded: false }
-    : { data: cannedCascade(anchor), degraded: true };
-}
-
-function offlineEpitaph(): { data: Epitaph; degraded: boolean } {
-  const tidied = normalizeEpitaph({
-    epitaph: "  Branch terminated.\nCause: " + "very ".repeat(60) + "long.  ",
-  });
-  return { data: tidied, degraded: false };
-}
-
-/* --------------------------------------------------------------- execution */
+const anchorYearOf = (c: EvalCase): number => (c.mode === "epitaph" ? 0 : c.anchorYear);
 
 async function runCase(c: EvalCase): Promise<CaseResult> {
   const started = Date.now();
   const errors: string[] = [];
-  let degraded = false;
   let sample = "";
+  let fellBack = false;
+  let provider = "unknown";
 
   try {
     if (c.mode === "epitaph") {
-      const { data, degraded: d } = OFFLINE
-        ? offlineEpitaph()
-        : await generateEpitaph({
-            branchLabel: c.branchLabel,
-            doomedTitles: c.doomedTitles,
-          });
-      degraded = d;
-      sample = data.epitaph;
+      const r = await generateEpitaph(
+        { branchLabel: c.branchLabel, doomedTitles: c.doomedTitles },
+        log,
+      );
+      fellBack = r.fellBack;
+      provider = r.provider;
+      sample = r.data.epitaph;
 
-      const v = validateEpitaph(data);
+      const v = validateEpitaph(r.data);
       if (!v.ok) errors.push(...v.errors);
-      errors.push(...checkText(data.epitaph, c.forbidden));
+      errors.push(...checkText(r.data.epitaph, c.forbidden));
     } else {
       const anchor = anchorYearOf(c);
-      const { data, degraded: d } = OFFLINE
-        ? offlineCascade(c)
-        : c.mode === "branch"
-          ? await generateCascade({
-              mode: "branch",
-              anchorYear: c.anchorYear,
-              anchorTitle: c.anchorTitle,
-              premise: c.premise,
-            })
-          : await generateCascade({
-              mode: "rewrite",
-              anchorYear: c.anchorYear,
-              oldTitle: c.oldTitle,
-              newTitle: c.newTitle,
-            });
-      degraded = d;
-      sample = data.events.map((e) => `${e.year} ${e.title}`).join(" | ");
+      const r = await generateCascade(
+        {
+          mode: c.mode,
+          anchorYear: anchor,
+          anchorTitle: c.mode === "branch" ? c.anchorTitle : c.oldTitle,
+          premise: c.mode === "branch" ? c.premise : c.newTitle,
+        },
+        log,
+      );
+      fellBack = r.fellBack;
+      provider = r.provider;
+      sample = r.data.events.map((e) => `${e.year} ${e.title}`).join(" | ");
 
-      const v = validateCascade(data, anchor);
+      const v = validateCascade(r.data, anchor);
       if (!v.ok) errors.push(...v.errors);
-
-      const blob = data.events
-        .map((e) => e.title + " " + e.consequence)
-        .join(" ");
-      errors.push(...checkText(blob, c.forbidden));
+      errors.push(
+        ...checkText(r.data.events.map((e) => e.title + " " + e.consequence).join(" "), c.forbidden),
+      );
     }
   } catch (err) {
-    errors.push(
-      "threw: " + (err instanceof Error ? err.message : String(err)),
-    );
+    errors.push("threw: " + (err instanceof Error ? err.message : String(err)));
   }
+
+  // A fallback is not a pass: the provider under test failed to deliver.
+  if (fellBack) errors.push("fell back to the procedural engine");
 
   return {
     id: c.id,
     kind: c.kind,
     mode: c.mode,
-    // A degraded (canned) response is renderable but is not a real pass:
-    // the engine failed twice to produce valid output for this input.
-    pass: errors.length === 0 && !degraded,
-    degraded,
+    pass: errors.length === 0,
+    fellBack,
+    provider,
     ms: Date.now() - started,
     errors,
     sample,
   };
 }
 
+/**
+ * The procedural engine seeds its PRNG from the premise, so identical input
+ * must produce byte-identical output. A drift here means someone made the
+ * engine non-deterministic, which would silently invalidate every baseline.
+ */
+async function determinismCheck(): Promise<string[]> {
+  const failures: string[] = [];
+  const sample = CASES.filter((c) => c.mode === "branch").slice(0, 6);
+
+  for (const c of sample) {
+    if (c.mode !== "branch") continue;
+    const req = {
+      mode: "branch" as const,
+      anchorYear: c.anchorYear,
+      anchorTitle: c.anchorTitle,
+      premise: c.premise,
+    };
+    const a = await generateCascade(req, log);
+    const b = await generateCascade(req, log);
+    if (JSON.stringify(a.data) !== JSON.stringify(b.data)) {
+      failures.push(c.id);
+    }
+  }
+  return failures;
+}
+
+function percentile(sorted: number[], p: number): number {
+  if (sorted.length === 0) return 0;
+  const i = Math.min(sorted.length - 1, Math.floor((p / 100) * sorted.length));
+  return sorted[i];
+}
+
 async function main() {
-  if (!OFFLINE && !process.env.ANTHROPIC_API_KEY) {
+  const providers = await probeProviders();
+  const primary = providers.find((p) => p.primary);
+
+  if (primary && !primary.up) {
     console.error(
-      "ANTHROPIC_API_KEY is not set. Add it to .env.local, or run:\n" +
-        "  npm run eval -- --offline\n",
+      `Provider "${primary.name}" is not reachable (${primary.detail ?? "no detail"}).\n` +
+        `Every case would fall back to the procedural engine and fail.\n` +
+        `Start it, or run: npm run eval -- --provider=procedural\n`,
     );
     process.exit(2);
   }
@@ -182,23 +178,70 @@ async function main() {
     const r = await runCase(c);
     results.push(r);
     if (!AS_JSON) {
-      const mark = r.pass ? "PASS" : r.degraded ? "DEGR" : "FAIL";
+      const mark = r.pass ? "PASS" : "FAIL";
       console.log(
-        `  ${mark}  ${r.id.padEnd(26)} ${String(r.ms).padStart(5)}ms  ${r.sample.slice(0, 64)}`,
+        `  ${mark}  ${r.id.padEnd(26)} ${String(r.ms).padStart(5)}ms  ${r.sample.slice(0, 62)}`,
       );
       for (const e of r.errors) console.log(`        - ${e}`);
     }
   }
 
+  const determinism = primary?.name === "procedural" ? await determinismCheck() : [];
+
   const passed = results.filter((r) => r.pass).length;
-  const degradedCount = results.filter((r) => r.degraded).length;
   const rate = passed / results.length;
-  const ok = rate >= THRESHOLD;
+  const latencies = results.map((r) => r.ms).sort((a, b) => a - b);
+
+  // Regression guard: anything green in the baseline must still be green.
+  let regressions: string[] = [];
+  if (existsSync(BASELINE) && !UPDATE_BASELINE) {
+    try {
+      const prior = JSON.parse(readFileSync(BASELINE, "utf8")) as {
+        passing?: string[];
+      };
+      const nowPassing = new Set(results.filter((r) => r.pass).map((r) => r.id));
+      regressions = (prior.passing ?? []).filter((id) => !nowPassing.has(id));
+    } catch {
+      console.error("  (baseline unreadable - skipping regression check)");
+    }
+  }
+
+  const ok = rate >= THRESHOLD && regressions.length === 0 && determinism.length === 0;
+
+  if (UPDATE_BASELINE) {
+    writeFileSync(
+      BASELINE,
+      JSON.stringify(
+        {
+          recordedAt: new Date().toISOString(),
+          provider: primary?.name,
+          rate,
+          passing: results.filter((r) => r.pass).map((r) => r.id),
+        },
+        null,
+        2,
+      ) + "\n",
+    );
+    console.log(`\n  baseline written: ${passed}/${results.length} passing`);
+  }
 
   if (AS_JSON) {
     console.log(
       JSON.stringify(
-        { mode: OFFLINE ? "offline" : "live", rate, passed, total: results.length, results },
+        {
+          provider: primary?.name,
+          rate,
+          passed,
+          total: results.length,
+          regressions,
+          determinismFailures: determinism,
+          latencyMs: {
+            p50: percentile(latencies, 50),
+            p95: percentile(latencies, 95),
+            max: latencies[latencies.length - 1] ?? 0,
+          },
+          results,
+        },
         null,
         2,
       ),
@@ -212,19 +255,30 @@ async function main() {
       byKind.set(r.kind, s);
     }
 
-    console.log("\n" + "-".repeat(58));
-    console.log(`  mode            ${OFFLINE ? "offline (no API calls)" : "live"}`);
+    console.log("\n" + "-".repeat(60));
+    console.log(`  provider        ${primary?.name} (${primary?.detail ?? ""})`);
     for (const [kind, s] of byKind) {
       console.log(`  ${kind.padEnd(15)} ${s.pass}/${s.total}`);
     }
-    console.log(`  degraded        ${degradedCount}`);
+    console.log(`  fallbacks       ${results.filter((r) => r.fellBack).length}`);
     console.log(
-      `  schema-valid    ${(rate * 100).toFixed(1)}%  (threshold ${(THRESHOLD * 100).toFixed(0)}%)`,
+      `  latency         p50 ${percentile(latencies, 50)}ms  p95 ${percentile(latencies, 95)}ms  max ${latencies[latencies.length - 1] ?? 0}ms`,
+    );
+    if (determinism.length) {
+      console.log(`  DETERMINISM     failed: ${determinism.join(", ")}`);
+    } else if (primary?.name === "procedural") {
+      console.log(`  determinism     stable across repeat runs`);
+    }
+    if (regressions.length) {
+      console.log(`  REGRESSIONS     ${regressions.join(", ")}`);
+    }
+    console.log(
+      `  pass rate       ${(rate * 100).toFixed(1)}%  (threshold ${(THRESHOLD * 100).toFixed(0)}%)`,
     );
     console.log(`  result          ${ok ? "PASS" : "FAIL"}`);
-    console.log("-".repeat(58));
+    console.log("-".repeat(60));
     console.log(
-      `  constraints: ${LIMITS.minEvents}-${LIMITS.maxEvents} events, ` +
+      `  contract: ${LIMITS.minEvents}-${LIMITS.maxEvents} events, ` +
         `delta ${LIMITS.minDelta}-${LIMITS.maxDelta}, epitaph <= ${LIMITS.maxEpitaph} chars`,
     );
   }
