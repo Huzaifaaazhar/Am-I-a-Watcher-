@@ -1,8 +1,8 @@
 {
-  "name": "prune",
+  "name": "am-i-a-watcher",
   "version": "1.0.0",
   "private": true,
-  "description": "PRUNE - a timeline causality engine. Fan project.",
+  "description": "AM I A WATCHER? - a timeline causality engine. Fan project.",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

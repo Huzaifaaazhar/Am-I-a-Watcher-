@@ -29,11 +29,12 @@ export function TitleBlock() {
         Nothing copyrighted is reproduced below: this is an original styled
         wordmark in a freely-licensed slab face.
       */}
-      <h1 className="font-display text-[38px] font-extrabold leading-none tracking-[0.14em] text-gold-400 text-glow-gold">
-        PRUNE
+      <h1 className="font-display text-[34px] font-extrabold leading-[0.95] tracking-[0.1em] text-moss-200 text-glow-moss">
+        AM I A<br />
+        <span className="text-gold-400 text-glow-gold">WATCHER?</span>
       </h1>
-      <div className="mt-1 flex items-center gap-2">
-        <span className="h-px w-8 bg-gold-700/70" />
+      <div className="mt-2 flex items-center gap-2">
+        <span className="h-px w-8 bg-moss-500/70" />
         <span className="font-mono text-[8.5px] uppercase tracking-[0.3em] text-moss-400">
           Temporal Causality Engine
         </span>

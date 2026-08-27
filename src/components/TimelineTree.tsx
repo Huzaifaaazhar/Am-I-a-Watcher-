@@ -4,22 +4,24 @@ import { useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 
-import type { LayoutPoint, TimelineNode } from "@/lib/types";
+import Tentacle from "./Tentacle";
+import { hashString } from "@/lib/engine/grammar";
+import type { Branch, LayoutPoint, TimelineNode } from "@/lib/types";
 
 /** Animation timings, seconds. */
 const GROW = 0.75;
 export const FADE = 1.1;
 
 const COLORS = {
-  seed: new THREE.Color("#3d7a58"),
-  generated: new THREE.Color("#5a9c74"),
+  /** Worlds on the untouched spine. */
+  seed: new THREE.Color("#17a866"),
+  /** Worlds the engine created. */
+  generated: new THREE.Color("#25c97f"),
+  /** A world whose history was rewritten under it. */
   rewritten: new THREE.Color("#e0b840"),
-  selected: new THREE.Color("#f0cf68"),
-  edge: new THREE.Color("#3d7a58"),
-  edgeHot: new THREE.Color("#c69a24"),
+  selected: new THREE.Color("#8affc8"),
 };
 
-const UP = new THREE.Vector3(0, 1, 0);
 const easeOutBack = (t: number) => {
   const c = 1.70158;
   return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2);
@@ -30,220 +32,171 @@ function growthOf(node: TimelineNode, now: number): number {
   return THREE.MathUtils.clamp((now - node.bornAt) / (GROW * 1000), 0, 1);
 }
 
-/* ------------------------------------------------------------------- nodes */
+/* ------------------------------------------------------------------ worlds */
 
-interface NodeProps {
+/** Backside shell whose rim burns brightest - a world's atmosphere. */
+const ATMOSPHERE_VERTEX = /* glsl */ `
+  varying vec3 vNormal;
+  varying vec3 vView;
+  void main() {
+    vec4 world = modelMatrix * vec4(position, 1.0);
+    vNormal = normalize(mat3(modelMatrix) * normal);
+    vView = normalize(cameraPosition - world.xyz);
+    gl_Position = projectionMatrix * viewMatrix * world;
+  }
+`;
+
+const ATMOSPHERE_FRAGMENT = /* glsl */ `
+  uniform vec3 uColor;
+  uniform float uAlpha;
+  varying vec3 vNormal;
+  varying vec3 vView;
+  void main() {
+    // Rendered on the back faces, so the strongest fresnel lands on the limb
+    // of the sphere and reads as an atmosphere rather than a glow sprite.
+    float rim = pow(1.0 - abs(dot(normalize(vNormal), normalize(vView))), 2.6);
+    gl_FragColor = vec4(uColor, rim * uAlpha);
+  }
+`;
+
+interface WorldProps {
   node: TimelineNode;
   point: LayoutPoint;
   selected: boolean;
   implode: number;
-  geometry: THREE.SphereGeometry;
+  core: THREE.SphereGeometry;
+  shell: THREE.SphereGeometry;
   onSelect: (id: string) => void;
 }
 
-function NodeMarker({
+function World({
   node,
   point,
   selected,
   implode,
-  geometry,
+  core,
+  shell,
   onSelect,
-}: NodeProps) {
-  const mesh = useRef<THREE.Mesh>(null);
+}: WorldProps) {
+  const group = useRef<THREE.Group>(null);
+  const body = useRef<THREE.Mesh>(null);
   const material = useRef<THREE.MeshStandardMaterial>(null);
+  const atmosphere = useRef<THREE.ShaderMaterial>(null);
   const fadeStart = useRef<number | null>(null);
+
   const base = useMemo(
     () => new THREE.Vector3(point.x, point.y, point.z),
     [point.x, point.y, point.z],
   );
 
-  useFrame((state) => {
-    const m = mesh.current;
+  // Every world is its own place: a stable per-node tilt, spin and hue shift.
+  const identity = useMemo(() => {
+    const h = hashString(node.id);
+    return {
+      spin: 0.06 + ((h >>> 3) % 100) / 900,
+      tilt: ((h >>> 7) % 360) * (Math.PI / 180),
+      hue: (((h >>> 11) % 100) / 100 - 0.5) * 0.06,
+    };
+  }, [node.id]);
+
+  const colour = useMemo(() => {
+    const c = (
+      selected
+        ? COLORS.selected
+        : node.origin === "rewritten"
+          ? COLORS.rewritten
+          : node.origin === "generated"
+            ? COLORS.generated
+            : COLORS.seed
+    ).clone();
+    if (!selected && node.origin !== "rewritten") {
+      const hsl = { h: 0, s: 0, l: 0 };
+      c.getHSL(hsl);
+      c.setHSL((hsl.h + identity.hue + 1) % 1, hsl.s, hsl.l);
+    }
+    return c;
+  }, [selected, node.origin, identity.hue]);
+
+  useFrame((state, delta) => {
+    const g = group.current;
+    const b = body.current;
     const mat = material.current;
-    if (!m || !mat) return;
+    const atm = atmosphere.current;
+    if (!g || !b || !mat || !atm) return;
 
     const now = Date.now();
     const t = state.clock.elapsedTime;
 
-    // Birth: ease out with a slight overshoot so growth reads as organic.
     let scale = easeOutBack(growthOf(node, now));
+    let alpha = 1;
 
     if (node.status === "fading") {
-      // Rewrite ripple - superseded nodes desaturate and shrink out of the way.
       if (fadeStart.current === null) fadeStart.current = now;
-      const f = THREE.MathUtils.clamp(
-        (now - fadeStart.current) / (FADE * 1000),
-        0,
-        1,
-      );
+      const f = THREE.MathUtils.clamp((now - fadeStart.current) / (FADE * 1000), 0, 1);
       scale *= 1 - f;
-      mat.emissiveIntensity = 2.4 * (1 - f);
-      mat.opacity = 1 - f;
-    } else {
-      // Idle breathing keeps the tree alive between actions.
-      const pulse = 1 + Math.sin(t * 1.6 + base.y) * 0.05;
-      mat.emissiveIntensity = selected ? 2.6 + Math.sin(t * 6) * 0.5 : 1.5 * pulse;
-      mat.opacity = 1;
+      alpha = 1 - f;
     }
 
-    const size = (selected ? 0.7 : 0.5) * Math.max(scale, 0);
-    m.scale.setScalar(size);
+    mat.emissiveIntensity = selected ? 1.5 + Math.sin(t * 5) * 0.35 : 0.55;
+    mat.opacity = alpha;
+    atm.uniforms.uAlpha.value = alpha * (selected ? 1.1 : 0.6);
 
-    // Reset implosion: everything collapses toward the trunk's midpoint.
-    m.position.set(
+    const size = (selected ? 0.78 : 0.55) * Math.max(scale, 0);
+    g.scale.setScalar(size);
+    b.rotation.y += identity.spin * delta;
+
+    g.position.set(
       THREE.MathUtils.lerp(base.x, 0, implode),
       THREE.MathUtils.lerp(base.y, 15, implode),
       THREE.MathUtils.lerp(base.z, 0, implode),
     );
   });
 
-  const colour = selected
-    ? COLORS.selected
-    : node.origin === "rewritten"
-      ? COLORS.rewritten
-      : node.origin === "generated"
-        ? COLORS.generated
-        : COLORS.seed;
-
-  return (
-    <mesh
-      ref={mesh}
-      geometry={geometry}
-      onClick={(e) => {
-        e.stopPropagation();
-        onSelect(node.id);
-      }}
-      onPointerOver={(e) => {
-        e.stopPropagation();
-        document.body.style.cursor = "pointer";
-      }}
-      onPointerOut={() => {
-        document.body.style.cursor = "auto";
-      }}
-    >
-      <meshStandardMaterial
-        ref={material}
-        color={colour}
-        emissive={colour}
-        emissiveIntensity={1.5}
-        transparent
-        roughness={0.35}
-        metalness={0.1}
-      />
-    </mesh>
+  const atmosphereUniforms = useMemo(
+    () => ({ uColor: { value: colour }, uAlpha: { value: 1 } }),
+    [colour],
   );
-}
-
-/* ------------------------------------------------------------------- edges */
-
-interface EdgeProps {
-  from: LayoutPoint;
-  to: LayoutPoint;
-  child: TimelineNode;
-  implode: number;
-  geometry: THREE.CylinderGeometry;
-}
-
-/**
- * A luminous tube between two events. It draws itself progressively as the
- * child node is born, and carries a pulse of light along the new path.
- */
-function Edge({ from, to, child, implode, geometry }: EdgeProps) {
-  const group = useRef<THREE.Group>(null);
-  const tube = useRef<THREE.Mesh>(null);
-  const pulse = useRef<THREE.Mesh>(null);
-  const material = useRef<THREE.MeshStandardMaterial>(null);
-  const fadeStart = useRef<number | null>(null);
-
-  const a = useMemo(() => new THREE.Vector3(), []);
-  const b = useMemo(() => new THREE.Vector3(), []);
-  const dir = useMemo(() => new THREE.Vector3(), []);
-  const quat = useMemo(() => new THREE.Quaternion(), []);
-
-  useFrame(() => {
-    const g = group.current;
-    const t = tube.current;
-    const p = pulse.current;
-    const mat = material.current;
-    if (!g || !t || !p || !mat) return;
-
-    const now = Date.now();
-
-    a.set(
-      THREE.MathUtils.lerp(from.x, 0, implode),
-      THREE.MathUtils.lerp(from.y, 15, implode),
-      THREE.MathUtils.lerp(from.z, 0, implode),
-    );
-    b.set(
-      THREE.MathUtils.lerp(to.x, 0, implode),
-      THREE.MathUtils.lerp(to.y, 15, implode),
-      THREE.MathUtils.lerp(to.z, 0, implode),
-    );
-
-    let grow = growthOf(child, now);
-    let alpha = 1;
-
-    if (child.status === "fading") {
-      if (fadeStart.current === null) fadeStart.current = now;
-      const f = THREE.MathUtils.clamp(
-        (now - fadeStart.current) / (FADE * 1000),
-        0,
-        1,
-      );
-      alpha = 1 - f;
-      grow *= 1 - f;
-    }
-
-    if (grow <= 0.001) {
-      g.visible = false;
-      return;
-    }
-    g.visible = true;
-
-    dir.subVectors(b, a);
-    const length = dir.length();
-    if (length < 1e-4) {
-      g.visible = false;
-      return;
-    }
-    dir.normalize();
-    quat.setFromUnitVectors(UP, dir);
-
-    // Grow the tube from the parent end toward the child.
-    const drawn = length * grow;
-    g.quaternion.copy(quat);
-    g.position.copy(a).addScaledVector(dir, drawn * 0.5);
-    t.scale.set(1, drawn, 1);
-
-    mat.opacity = 0.82 * alpha;
-    // The tube glows hot while it is still drawing, then settles.
-    mat.emissiveIntensity = grow < 1 ? 3.4 : 1.35;
-
-    // A light pulse rides the path as it completes.
-    if (grow < 1) {
-      p.visible = true;
-      p.position.set(0, drawn * 0.5 - 0.001, 0);
-      p.scale.setScalar(0.26 * (1 - grow * 0.4));
-    } else {
-      p.visible = false;
-    }
-  });
 
   return (
-    <group ref={group}>
-      <mesh ref={tube} geometry={geometry}>
+    <group ref={group} rotation={[identity.tilt, 0, identity.tilt * 0.5]}>
+      <mesh
+        ref={body}
+        geometry={core}
+        onClick={(e) => {
+          e.stopPropagation();
+          onSelect(node.id);
+        }}
+        onPointerOver={(e) => {
+          e.stopPropagation();
+          document.body.style.cursor = "pointer";
+        }}
+        onPointerOut={() => {
+          document.body.style.cursor = "auto";
+        }}
+      >
         <meshStandardMaterial
           ref={material}
-          color={COLORS.edge}
-          emissive={COLORS.edgeHot}
-          emissiveIntensity={1.35}
+          color={colour}
+          emissive={colour}
+          emissiveIntensity={0.55}
           transparent
-          opacity={0.82}
+          roughness={0.55}
+          metalness={0.15}
+          flatShading
         />
       </mesh>
-      <mesh ref={pulse}>
-        <sphereGeometry args={[1, 8, 8]} />
-        <meshBasicMaterial color={COLORS.selected} transparent opacity={0.9} />
+
+      <mesh geometry={shell} scale={1.35}>
+        <shaderMaterial
+          ref={atmosphere}
+          uniforms={atmosphereUniforms}
+          vertexShader={ATMOSPHERE_VERTEX}
+          fragmentShader={ATMOSPHERE_FRAGMENT}
+          transparent
+          depthWrite={false}
+          side={THREE.BackSide}
+          blending={THREE.AdditiveBlending}
+        />
       </mesh>
     </group>
   );
@@ -253,6 +206,7 @@ function Edge({ from, to, child, implode, geometry }: EdgeProps) {
 
 interface TreeProps {
   nodes: TimelineNode[];
+  branches: Branch[];
   layout: Map<string, LayoutPoint>;
   selectedId: string | null;
   implode: number;
@@ -261,48 +215,75 @@ interface TreeProps {
 
 export default function TimelineTree({
   nodes,
+  branches,
   layout,
   selectedId,
   implode,
   onSelect,
 }: TreeProps) {
-  // Shared geometry - one allocation for every marker and every tube.
-  const sphere = useMemo(() => new THREE.SphereGeometry(1, 20, 20), []);
-  const cylinder = useMemo(
-    () => new THREE.CylinderGeometry(0.1, 0.1, 1, 8, 1, true),
-    [],
-  );
+  // Low-poly spheres, flat-shaded: worlds should read as bodies, not billiards.
+  const core = useMemo(() => new THREE.SphereGeometry(1, 14, 10), []);
+  const shell = useMemo(() => new THREE.SphereGeometry(1, 16, 12), []);
 
   const visible = nodes.filter((n) => n.status !== "pruned" && layout.has(n.id));
-  const byId = new Map(visible.map((n) => [n.id, n]));
+
+  /**
+   * One tendril per branch, threaded through every surviving world on it and
+   * rooted at the world it forked from.
+   */
+  const limbs = useMemo(() => {
+    return branches
+      .filter((b) => b.status === "alive")
+      .map((branch) => {
+        const own = visible
+          .filter((n) => n.branchId === branch.id)
+          .sort((a, b) => a.year - b.year);
+        if (own.length === 0) return null;
+
+        const path: LayoutPoint[] = [];
+        if (branch.originNodeId && layout.has(branch.originNodeId)) {
+          path.push(layout.get(branch.originNodeId)!);
+        }
+        for (const n of own) path.push(layout.get(n.id)!);
+        if (path.length < 2) return null;
+
+        // The tube is gated on its newest world, so it never runs ahead of
+        // the bodies it threads. Tentacle turns this into progress per frame.
+        return {
+          id: branch.id,
+          path,
+          depth: branch.depth,
+          seed: ((hashString(branch.id) % 1000) / 1000) * 6.283,
+          bornAt: Math.max(...own.map((n) => n.bornAt)),
+          fading: own.some((n) => n.status === "fading"),
+        };
+      })
+      .filter((x): x is NonNullable<typeof x> => x !== null);
+  }, [branches, visible, layout]);
 
   return (
     <group>
-      {visible.map((node) => {
-        const parent = node.parentId ? byId.get(node.parentId) : undefined;
-        if (!parent) return null;
-        const from = layout.get(parent.id)!;
-        const to = layout.get(node.id)!;
-        return (
-          <Edge
-            key={"e_" + node.id}
-            from={from}
-            to={to}
-            child={node}
-            implode={implode}
-            geometry={cylinder}
-          />
-        );
-      })}
+      {limbs.map((limb) => (
+        <Tentacle
+          key={limb.id}
+          path={limb.path}
+          bornAt={limb.bornAt}
+          fading={limb.fading}
+          depth={limb.depth}
+          seed={limb.seed}
+          implode={implode}
+        />
+      ))}
 
       {visible.map((node) => (
-        <NodeMarker
+        <World
           key={node.id}
           node={node}
           point={layout.get(node.id)!}
           selected={selectedId === node.id}
           implode={implode}
-          geometry={sphere}
+          core={core}
+          shell={shell}
           onSelect={onSelect}
         />
       ))}

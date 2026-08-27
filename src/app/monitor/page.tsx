@@ -73,25 +73,25 @@ export default function MonitorPage() {
   const view = useMemo(() => {
     if (!samples) return null;
 
-    const total = sum(samples, "prune_causality_requests_total");
-    const ok = sum(samples, "prune_causality_requests_total", { outcome: "ok" });
-    const fallback = sum(samples, "prune_causality_requests_total", { outcome: "fallback" });
-    const errors = sum(samples, "prune_causality_requests_total", { outcome: "error" });
-    const rejected = sum(samples, "prune_requests_rejected_total");
-    const events = sum(samples, "prune_events_generated_total");
+    const total = sum(samples, "watcher_causality_requests_total");
+    const ok = sum(samples, "watcher_causality_requests_total", { outcome: "ok" });
+    const fallback = sum(samples, "watcher_causality_requests_total", { outcome: "fallback" });
+    const errors = sum(samples, "watcher_causality_requests_total", { outcome: "error" });
+    const rejected = sum(samples, "watcher_requests_rejected_total");
+    const events = sum(samples, "watcher_events_generated_total");
 
-    const allBins = histogram(samples, "prune_causality_duration_seconds");
+    const allBins = histogram(samples, "watcher_causality_duration_seconds");
     // Quantiles read the full histogram; only the chart drops the empty tail.
     const p50 = quantile(allBins, 0.5);
     const p95 = quantile(allBins, 0.95);
     const bins = trimTail(allBins);
 
-    const byMode = groupBy(samples, "prune_causality_requests_total", "mode");
-    const byReason = groupBy(samples, "prune_requests_rejected_total", "reason");
-    const byStage = groupBy(samples, "prune_validation_failures_total", "stage");
+    const byMode = groupBy(samples, "watcher_causality_requests_total", "mode");
+    const byReason = groupBy(samples, "watcher_requests_rejected_total", "reason");
+    const byStage = groupBy(samples, "watcher_validation_failures_total", "stage");
 
-    const heapBytes = sum(samples, "prune_nodejs_heap_size_used_bytes");
-    const lag = sum(samples, "prune_nodejs_eventloop_lag_mean_seconds");
+    const heapBytes = sum(samples, "watcher_nodejs_heap_size_used_bytes");
+    const lag = sum(samples, "watcher_nodejs_eventloop_lag_mean_seconds");
 
     const outcomes: Datum[] = [
       { key: "served", value: ok, status: "good" as Status },
@@ -117,7 +117,7 @@ export default function MonitorPage() {
       <header className="mb-5 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="font-display text-2xl font-extrabold tracking-[0.12em] text-gold-400 text-glow-gold">
-            PRUNE / OPS
+            WATCHER / OPS
           </h1>
           <p className="mt-1 font-mono text-[8.5px] uppercase tracking-[0.24em] text-moss-500">
             Scraping /api/metrics every {REFRESH_MS / 1000}s
@@ -141,7 +141,7 @@ export default function MonitorPage() {
             href="/"
             className="rounded-sm border border-moss-700/60 px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.16em] text-moss-300 transition-colors hover:border-gold-600/70 hover:text-gold-300"
           >
-            Back to tree
+            Back to the tree
           </a>
         </div>
       </header>

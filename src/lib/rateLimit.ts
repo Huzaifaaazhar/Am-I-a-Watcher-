@@ -1,7 +1,7 @@
 /**
  * Budget guardrails for /api/causality.
  *
- * Scope: in-process counters. That is the right fit for this build - PRUNE runs
+ * Scope: in-process counters. That is the right fit for this build - the app runs
  * as a single local Next.js process for a screen recording, and the threat is
  * "someone I shared the URL with refreshes it 400 times", not a distributed
  * attack. If this is ever deployed to serverless where each instance gets its

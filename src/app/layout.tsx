@@ -2,9 +2,9 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "PRUNE // Temporal Causality Engine",
+  title: "AM I A WATCHER? // Temporal Causality Engine",
   description:
-    "Branch, prune and rewrite a tree of timelines. An unofficial fan project - not affiliated with Marvel or Disney.",
+    "A universe of branching timelines you can branch, prune and rewrite. An unofficial fan project - not affiliated with Marvel or Disney.",
 };
 
 export const viewport: Viewport = {

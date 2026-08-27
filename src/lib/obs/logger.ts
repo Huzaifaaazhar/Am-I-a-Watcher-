@@ -20,7 +20,7 @@ export const LOG_PREMISES = process.env.LOG_PREMISES === "1";
 
 export const logger = pino({
   level: LEVEL,
-  base: { service: "prune", env: process.env.NODE_ENV ?? "development" },
+  base: { service: "watcher", env: process.env.NODE_ENV ?? "development" },
   timestamp: pino.stdTimeFunctions.isoTime,
   redact: {
     paths: ["premise", "*.premise", "newTitle", "*.newTitle", "req.headers.authorization"],

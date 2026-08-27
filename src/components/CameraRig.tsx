@@ -116,6 +116,17 @@ export default function CameraRig({ focus, idle, fit }: Props) {
     const quiet = performance.now() - interactedAt.current > 2600;
     if (idle && quiet && !dragging.current) {
       want.current.theta += IDLE_SPEED * dt;
+
+      // New limbs can reach outside the frame. Pull back to hold them, but
+      // only while idle and only outward - never fight a deliberate zoom in.
+      if (!focus && fit.distance > want.current.radius * 1.05) {
+        want.current.radius = THREE.MathUtils.lerp(
+          want.current.radius,
+          fit.distance,
+          1 - Math.pow(0.2, dt),
+        );
+        wantTarget.current.set(0, fit.centerY, 0);
+      }
     }
 
     const k = 1 - Math.pow(0.0015, dt);

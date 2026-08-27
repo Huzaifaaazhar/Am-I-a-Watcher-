@@ -1,9 +1,10 @@
-# PRUNE — Temporal Causality Engine
+# AM I A WATCHER? — Temporal Causality Engine
 
-An interactive tree of branching timelines you can **branch**, **prune**, and
-**rewrite**. Change one event and the engine generates the ripple of
-consequences downstream. Pruning a branch dissolves it into gold ash and writes
-a one-line epitaph to the ledger.
+A universe of branching timelines you can **branch**, **prune**, and
+**rewrite**. A spine of raw time runs through the void; every what-if sends a
+green tendril writhing out of it into open space, and every world strung along
+that tendril is a history of its own. Prune one and it dissolves into gold ash
+while the engine writes its epitaph to the ledger.
 
 You are a temporal custodian who is never quite in control.
 
@@ -34,7 +35,7 @@ engine is the default and has no dependencies. Copy `.env.example` to
 
 | Route | What it is |
 |---|---|
-| `/` | The timeline tree |
+| `/` | The universe |
 | `/monitor` | Operational dashboard |
 | `/api/health` | Liveness + provider readiness (JSON) |
 | `/api/metrics` | Prometheus scrape endpoint |
@@ -45,13 +46,30 @@ engine is the default and has no dependencies. Copy `.env.example` to
 
 | Verb | What happens |
 |---|---|
-| **BRANCH** | Enter a "what if". The engine generates 3–5 consequence events; a new branch grows off the anchor, splaying outward in 3D, with a pulse of light travelling the new path. |
+| **BRANCH** | Enter a "what if". The engine generates 3–5 consequence events, and a tendril grows out of the anchor world into open space, threading each new world as it goes. |
 | **PRUNE** | The branch converts to a GLSL point system and disperses along noise-driven vectors as glowing gold embers, while the engine writes a deadpan epitaph to the ledger. |
 | **REWRITE** | Edit an event. Everything downstream desaturates and fades while the regenerated cascade grows in sequentially. |
 
-Controls: drag to orbit, scroll to zoom, click an event for the radial menu.
-Every action raises the **instability meter**; at 100 the tree implodes and
-reseeds behind a stamped `SEQUENCE RESET`.
+Controls: drag to orbit, scroll to zoom, click a world for the radial menu.
+Every action raises the **instability meter**; at 100 the whole universe
+implodes toward the origin and reseeds behind a stamped `SEQUENCE RESET`.
+
+### How it is drawn
+
+- **The spine** is the prime timeline: time runs up the Y axis, with a minimum
+  gap between worlds so labels never collide.
+- **Every other branch is a limb.** It leaves the spine along its own direction
+  — golden-angle azimuth, low-discrepancy inclination — so limbs reach up, out
+  and down and fill the volume instead of stacking into a cone. Distance along
+  the limb replaces the year axis there: order survives, absolute height does not.
+- **Limbs are one continuous tube**, not a pipe per edge, so a branch reads as a
+  single thing reaching out. They writhe in the vertex shader with the base
+  anchored and amplitude growing toward the tip, and energy runs along their
+  length.
+- **Worlds** are flat-shaded bodies with a back-face fresnel shell for an
+  atmosphere, each with its own stable tilt, spin and hue.
+- **Labels are culled in screen space**, nearest-first, so overlapping worlds
+  never stack their text. The selected world always keeps its label.
 
 ---
 
@@ -110,7 +128,7 @@ engine could not:
 
 If the primary provider fails that gate twice, the procedural engine answers
 instead. The response carries `provider` and `degraded`, and the fallback is
-counted in `prune_provider_fallbacks_total` — a provider quietly failing half
+counted in `watcher_provider_fallbacks_total` — a provider quietly failing half
 the time is exactly what monitoring is for.
 
 **Prompt injection** is handled the same way by both: a premise that tries to
@@ -128,7 +146,7 @@ returned in the `x-request-id` header and the error body, so a user report maps
 to a log line.
 
 ```json
-{"level":"info","time":"…","service":"prune","requestId":"MTAIRRD04YAX85",
+{"level":"info","time":"…","service":"watcher","requestId":"MTAIRRD04YAX85",
  "mode":"branch","provider":"procedural","fellBack":false,"durationMs":0.27,
  "events":4,"delta":14,"msg":"cascade served"}
 ```
@@ -144,15 +162,15 @@ event-loop lag, GC).
 
 | Metric | Type | Labels |
 |---|---|---|
-| `prune_causality_requests_total` | counter | `mode`, `provider`, `outcome` |
-| `prune_causality_duration_seconds` | histogram | `mode`, `provider` |
-| `prune_validation_failures_total` | counter | `mode`, `stage` |
-| `prune_provider_fallbacks_total` | counter | `from`, `to`, `reason` |
-| `prune_requests_rejected_total` | counter | `reason` |
-| `prune_provider_up` | gauge | `provider` |
-| `prune_events_generated_total` | counter | `mode` |
+| `watcher_causality_requests_total` | counter | `mode`, `provider`, `outcome` |
+| `watcher_causality_duration_seconds` | histogram | `mode`, `provider` |
+| `watcher_validation_failures_total` | counter | `mode`, `stage` |
+| `watcher_provider_fallbacks_total` | counter | `from`, `to`, `reason` |
+| `watcher_requests_rejected_total` | counter | `reason` |
+| `watcher_provider_up` | gauge | `provider` |
+| `watcher_events_generated_total` | counter | `mode` |
 
-Worth alerting on: `prune_provider_up == 0` for the primary provider, a
+Worth alerting on: `watcher_provider_up == 0` for the primary provider, a
 sustained non-zero fallback rate, and p95 of the duration histogram.
 
 ### Health

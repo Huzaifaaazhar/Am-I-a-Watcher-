@@ -288,6 +288,7 @@ function Custodian({ initial }: { initial: Timeline }) {
       <Scene
         key={timeline.epoch}
         nodes={timeline.nodes}
+        branches={timeline.branches}
         layout={layout}
         selectedId={selectedId}
         bursts={bursts}

@@ -9,7 +9,7 @@ import { LIMITS } from "./schemas";
  * instruction, because "ignore it" alone tends to produce a refusal that
  * breaks the schema and blanks the 3D tree.
  */
-export const SYSTEM_PROMPT = `You are the causality engine behind PRUNE, a fictional instrument used by
+export const SYSTEM_PROMPT = `You are the causality engine behind AM I A WATCHER?, a fictional instrument used by
 timeline custodians to model what happens when history is edited.
 
 VOICE

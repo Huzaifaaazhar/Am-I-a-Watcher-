@@ -16,7 +16,12 @@ const YEAR_MAX = 2120;
 const TRUNK_HEIGHT = 30;
 /** Golden angle - distributes branches around the trunk without clustering. */
 const GOLDEN_ANGLE = 2.399963229728653;
-const SPLAY_RADIUS = 4.4;
+/** How far a limb clears the spine before its first world. */
+const BASE_REACH = 5.5;
+/** Gap between worlds along a limb. */
+const STEP = 4.2;
+/** Amplitude of the perpendicular curl that keeps limbs from being spokes. */
+const CURL = 2.1;
 /** Minimum vertical separation between consecutive events, so labels never collide. */
 const MIN_GAP = 2.6;
 
@@ -27,12 +32,44 @@ export function yForYear(year: number): number {
   return t * TRUNK_HEIGHT;
 }
 
-function branchCenter(branch: Branch): { x: number; z: number } {
-  if (branch.depth === 0) return { x: 0, z: 0 };
-  const angle = branch.index * GOLDEN_ANGLE;
-  const radius = branch.depth * SPLAY_RADIUS;
-  return { x: Math.cos(angle) * radius, z: Math.sin(angle) * radius };
+/**
+ * The direction a branch reaches away from the spine.
+ *
+ * Golden-angle azimuth spreads branches around the trunk; the inclination is
+ * driven by a second low-discrepancy sequence so limbs also reach up, out and
+ * down rather than all sitting in one band. Clamped away from the poles so
+ * nothing grows straight along the spine and hides inside it.
+ */
+function branchDirection(index: number): { x: number; y: number; z: number } {
+  const azimuth = index * GOLDEN_ANGLE;
+  // Fractional golden-ratio steps: evenly spread, never repeating early.
+  const t = (index * 0.6180339887498949) % 1;
+  const phi = 0.55 + t * 2.05; // radians, ~31deg..~150deg from +Y
+  const s = Math.sin(phi);
+  return { x: s * Math.cos(azimuth), y: Math.cos(phi), z: s * Math.sin(azimuth) };
 }
+
+/** Any unit vector perpendicular to `d`, used to curl the limb off a straight ray. */
+function perpendicular(d: { x: number; y: number; z: number }) {
+  // Cross with +Y, unless d is nearly parallel to it, in which case use +X.
+  const ax = Math.abs(d.y) > 0.92 ? { x: 1, y: 0, z: 0 } : { x: 0, y: 1, z: 0 };
+  const c = {
+    x: d.y * ax.z - d.z * ax.y,
+    y: d.z * ax.x - d.x * ax.z,
+    z: d.x * ax.y - d.y * ax.x,
+  };
+  const len = Math.hypot(c.x, c.y, c.z) || 1;
+  return { x: c.x / len, y: c.y / len, z: c.z / len };
+}
+
+const cross = (
+  a: { x: number; y: number; z: number },
+  b: { x: number; y: number; z: number },
+) => ({
+  x: a.y * b.z - a.z * b.y,
+  y: a.z * b.x - a.x * b.z,
+  z: a.x * b.y - a.y * b.x,
+});
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
@@ -54,30 +91,51 @@ export function layoutTimeline(t: Timeline): Map<string, LayoutPoint> {
   const branches = t.branches.slice().sort((a, b) => a.depth - b.depth);
 
   for (const branch of branches) {
-    const center = branchCenter(branch);
-    const origin = branch.originNodeId ? pos.get(branch.originNodeId) : null;
-    const from = origin ?? { x: center.x, z: center.z };
     const nodes = byBranch.get(branch.id) ?? [];
+    if (nodes.length === 0) continue;
 
-    // Events clustered in the same decade would stack their labels on top of
-    // each other. Walk the branch in order and push each node up to at least
-    // MIN_GAP above the previous one - the tree stops being a true linear time
-    // axis, but it stays readable on camera, which is what it is for.
-    let floor = origin ? origin.y + MIN_GAP : -Infinity;
+    // The prime timeline is the spine: time still runs up the Y axis, with a
+    // minimum gap so labels never collide.
+    if (branch.depth === 0) {
+      let floor = -Infinity;
+      for (const node of nodes) {
+        const y = Math.max(yForYear(node.year), floor);
+        floor = y + MIN_GAP;
+        pos.set(node.id, { x: 0, y, z: 0 });
+      }
+      continue;
+    }
+
+    // Everything else is a limb: it leaves the spine in its own direction and
+    // keeps going, so branches occupy the whole volume instead of stacking
+    // upward in a cone. Distance along the limb replaces the year axis here -
+    // order is preserved, absolute height is not.
+    const origin = branch.originNodeId
+      ? pos.get(branch.originNodeId)
+      : { x: 0, y: 15, z: 0 };
+    if (!origin) continue;
+
+    const dir = branchDirection(branch.index);
+    const u = perpendicular(dir);
+    const v = cross(dir, u);
+
+    const step = STEP / (1 + (branch.depth - 1) * 0.22);
 
     nodes.forEach((node, i) => {
-      const y = Math.max(yForYear(node.year), floor);
-      floor = y + MIN_GAP;
+      const along = BASE_REACH + i * step;
+      // Two out-of-phase perpendicular offsets curl the limb into an S rather
+      // than a straight spoke.
+      const curlA = Math.sin((i + 1) * 0.85 + branch.index) * CURL;
+      const curlB = Math.cos((i + 1) * 0.62 + branch.index * 1.7) * CURL * 0.7;
 
-      // Ease out to the branch's own lane over the first ~3 events.
-      const t2 = branch.depth === 0 ? 1 : Math.min(1, (i + 1) / 2.5);
       pos.set(node.id, {
-        x: lerp(from.x, center.x, t2),
-        y,
-        z: lerp(from.z, center.z, t2),
+        x: origin.x + dir.x * along + u.x * curlA + v.x * curlB,
+        y: origin.y + dir.y * along + u.y * curlA + v.y * curlB,
+        z: origin.z + dir.z * along + u.z * curlA + v.z * curlB,
       });
     });
   }
+
   return pos;
 }
 
