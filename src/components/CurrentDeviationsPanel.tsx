@@ -11,7 +11,7 @@ export default function CurrentDeviationsPanel({
   onSelect: (branchId: string) => void;
 }) {
   return (
-    <div className="w-[280px] border-2 border-brass bg-black/95 px-5 py-5">
+    <div className="w-full border-2 border-brass bg-hud-green/95 px-5 py-5 backdrop-blur-sm md:w-[280px]">
       <h3 className="mb-4 font-sans text-[19px] font-extrabold uppercase tracking-[0.04em] text-brass">
         Current Deviations
       </h3>

@@ -62,6 +62,13 @@ export default function MatrixRain({ active }: { active: boolean }) {
   return (
     <canvas
       ref={ref}
+      // The trail is drawn by fading the canvas to black each frame, which
+      // left a hard horizontal seam where the element ended. Masking the
+      // bottom edge lets the rain dissolve into the scene instead.
+      style={{
+        maskImage: "linear-gradient(to bottom, black 55%, transparent 100%)",
+        WebkitMaskImage: "linear-gradient(to bottom, black 55%, transparent 100%)",
+      }}
       className="pointer-events-none absolute inset-x-0 top-0 z-20 h-[46%] w-full opacity-70"
     />
   );

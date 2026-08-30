@@ -94,6 +94,7 @@ function Custodian({ initial }: { initial: Timeline }) {
   const [resetting, setResetting] = useState(false);
   const [panel, setPanel] = useState<SidebarPanel>(null);
   const [deviation, setDeviation] = useState<DeviationFlash | null>(null);
+  const [navOpen, setNavOpen] = useState(false);
 
   const labelRefs = useRef<Map<string, HTMLElement>>(new Map());
   const resetGuard = useRef(false);
@@ -309,11 +310,13 @@ function Custodian({ initial }: { initial: Timeline }) {
 
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-black">
-      <TopBar />
+      <TopBar onToggleNav={() => setNavOpen((v) => !v)} />
 
       <div className="relative flex min-h-0 flex-1">
         <Sidebar
           activePanel={panel}
+          open={navOpen}
+          onClose={() => setNavOpen(false)}
           onSelectPanel={(p) => setPanel((cur) => (cur === p ? null : p))}
           onResetView={() => {
             setPanel(null);
@@ -336,12 +339,17 @@ function Custodian({ initial }: { initial: Timeline }) {
             labelRefs={labelRefs}
           />
 
-          <NodeLabels nodes={timeline.nodes} selectedId={selectedId} labelRefs={labelRefs} />
+          <NodeLabels
+            nodes={timeline.nodes}
+            selectedId={selectedId}
+            labelRefs={labelRefs}
+            onSelect={setSelectedId}
+          />
 
           <Texture />
           <MatrixRain active={Boolean(deviation)} />
 
-          <div className="pointer-events-none absolute right-6 top-6 z-30">
+          <div className="pointer-events-none absolute right-6 top-6 z-20 hidden md:block">
             <InstabilityGauge value={timeline.instability} />
           </div>
 
@@ -412,7 +420,7 @@ function Custodian({ initial }: { initial: Timeline }) {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -16 }}
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                className="pointer-events-auto absolute right-6 top-6 z-30 flex items-start gap-4"
+                className="pointer-events-auto absolute inset-x-3 bottom-3 top-3 z-30 flex flex-col gap-3 overflow-y-auto md:inset-x-auto md:bottom-auto md:right-6 md:top-6 md:max-h-[calc(100%-3rem)] md:flex-row md:items-start md:gap-4"
               >
                 <EventPanel
                   node={selected}
@@ -420,6 +428,10 @@ function Custodian({ initial }: { initial: Timeline }) {
                   busy={busy}
                   eyebrow="Timeline Editor"
                   warning
+                  onClose={() => {
+                    setSelectedId(null);
+                    setDeviation(null);
+                  }}
                   onSave={(newTitle) => void runRewrite(selected.id, newTitle)}
                   onBranch={(premise) => void runBranch(selected.id, premise)}
                   onPrune={() => void runPrune(selected.id)}
@@ -441,12 +453,13 @@ function Custodian({ initial }: { initial: Timeline }) {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -16 }}
                   transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                  className="pointer-events-auto absolute right-6 top-6 z-30"
+                  className="pointer-events-auto absolute inset-x-3 bottom-3 z-30 max-h-[70%] overflow-y-auto md:inset-x-auto md:bottom-auto md:right-6 md:top-6 md:max-h-[calc(100%-3rem)]"
                 >
                   <EventPanel
                     node={selected}
                     originLabel={originLabel}
                     busy={busy}
+                    onClose={() => setSelectedId(null)}
                     onSave={(newTitle) => void runRewrite(selected.id, newTitle)}
                     onBranch={(premise) => void runBranch(selected.id, premise)}
                     onPrune={() => void runPrune(selected.id)}

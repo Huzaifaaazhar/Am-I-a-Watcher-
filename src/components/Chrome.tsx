@@ -72,9 +72,11 @@ export function StatusStrip({
 export function Hint({ visible }: { visible: boolean }) {
   if (!visible) return null;
   return (
-    <div className="pointer-events-none absolute bottom-4 left-1/2 z-30 -translate-x-1/2 text-center font-mono text-[9.5px] uppercase tracking-[0.2em] text-moss-600">
+    <div className="pointer-events-none absolute bottom-9 left-1/2 z-30 w-full -translate-x-1/2 px-4 text-center font-mono text-[9.5px] uppercase tracking-[0.2em] text-moss-600 md:bottom-4">
       Select an event to branch, prune or rewrite it
-      <div className="mt-1 text-[8px] tracking-[0.16em] text-moss-800">
+      {/* Wheel zoom is desktop-only advice, and on a phone this second line
+          collided with the disclaimer pinned to the same corner. */}
+      <div className="mt-1 hidden text-[8px] tracking-[0.16em] text-moss-800 md:block">
         drag to orbit &middot; scroll to zoom
       </div>
     </div>
@@ -119,7 +121,7 @@ export function ResetStamp({ visible }: { visible: boolean }) {
 
 export function Disclaimer() {
   return (
-    <div className="pointer-events-none absolute bottom-3 right-5 z-30 max-w-[260px] text-right font-mono text-[7.5px] leading-relaxed text-moss-800">
+    <div className="pointer-events-none absolute inset-x-0 bottom-2 z-30 px-4 text-center font-mono text-[7.5px] leading-relaxed text-moss-800 md:inset-x-auto md:bottom-3 md:right-5 md:max-w-[260px] md:text-right">
       Unofficial fan project. Not affiliated with, endorsed by, or sponsored by
       Marvel or Disney.
     </div>

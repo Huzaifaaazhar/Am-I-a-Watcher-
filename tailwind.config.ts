@@ -35,34 +35,41 @@ const config: Config = {
           300: "#f8e3a0",
           200: "#fdf3d4",
         },
-        ash: "#c9c3b0",
-        /**
-         * TVA / Asgardian HUD palette - the exact tokens the sidebar, drawer
-         * and banners are built from. Separate from moss/gold above, which
-         * stay reserved for the 3D scene's own materials.
-         */
+        ash: "#EDEAE0",
         abyss: {
-          DEFAULT: "#080F0E",
-          deep: "#04271A",
-          panel: "#0B3D2E",
+          DEFAULT: "#050807",
+          deep: "#06331F",
+          panel: "#0E5138",
+        },
+        /**
+         * Sampled from the reference screenshots. The chrome is a mid forest
+         * green with gold rules; nav blocks are near-black; the two action
+         * pills are a flat blue and brick red.
+         */
+        hud: {
+          green: "#0B4A34",
+          greenDark: "#06331F",
+          panel: "#0E5138",
+          black: "#050807",
+        },
+        brass: {
+          DEFAULT: "#E8C34A",
+          dim: "#C9A63B",
         },
         weave: {
           DEFAULT: "#10B981",
           bright: "#00FFCC",
         },
         warn: {
-          DEFAULT: "#FF9900",
+          DEFAULT: "#F0A020",
           deep: "#E65100",
         },
-        brass: "#D4AF37",
-        /** Reference-matched extras: pill-button fills and the top bar. */
         pill: {
-          blue: "#1C6E9C",
-          blueDark: "#124E70",
-          red: "#A3352B",
-          redDark: "#7A2620",
+          blue: "#2E7BA6",
+          blueDark: "#215C7D",
+          red: "#B03A2E",
+          redDark: "#8A2C23",
         },
-        topbar: "#0B3D2E",
       },
       fontFamily: {
         // Freely-licensed faces only. No official/copyrighted title fonts.

@@ -17,11 +17,11 @@ const TRUNK_HEIGHT = 30;
 /** Golden angle - distributes branches around the trunk without clustering. */
 const GOLDEN_ANGLE = 2.399963229728653;
 /** How far a limb clears the spine before its first world. */
-const BASE_REACH = 5.5;
+const BASE_REACH = 4.2;
 /** Gap between worlds along a limb. */
-const STEP = 4.2;
+const STEP = 3.4;
 /** Amplitude of the perpendicular curl that keeps limbs from being spokes. */
-const CURL = 2.1;
+const CURL = 1.15;
 /** Minimum vertical separation between consecutive events, so labels never collide. */
 const MIN_GAP = 2.6;
 
@@ -32,50 +32,51 @@ export function yForYear(year: number): number {
   return t * TRUNK_HEIGHT;
 }
 
-/**
- * The direction a branch reaches away from the spine.
- *
- * Golden-angle azimuth spreads branches around the trunk; the inclination is
- * driven by a second low-discrepancy sequence so limbs also reach up, out and
- * down rather than all sitting in one band. Clamped away from the poles so
- * nothing grows straight along the spine and hides inside it.
- */
-function branchDirection(index: number): { x: number; y: number; z: number } {
-  const azimuth = index * GOLDEN_ANGLE;
-  // Fractional golden-ratio steps: evenly spread, never repeating early.
-  const t = (index * 0.6180339887498949) % 1;
-  const phi = 0.55 + t * 2.05; // radians, ~31deg..~150deg from +Y
-  const s = Math.sin(phi);
-  return { x: s * Math.cos(azimuth), y: Math.cos(phi), z: s * Math.sin(azimuth) };
+/** Straight up - the direction every bough eventually curves toward. */
+const UP = { x: 0, y: 1, z: 0 };
+
+type Vec = { x: number; y: number; z: number };
+
+const add = (a: Vec, b: Vec): Vec => ({ x: a.x + b.x, y: a.y + b.y, z: a.z + b.z });
+const scale = (a: Vec, k: number): Vec => ({ x: a.x * k, y: a.y * k, z: a.z * k });
+
+function norm(v: Vec): Vec {
+  const len = Math.hypot(v.x, v.y, v.z) || 1;
+  return { x: v.x / len, y: v.y / len, z: v.z / len };
 }
 
-/** Any unit vector perpendicular to `d`, used to curl the limb off a straight ray. */
-function perpendicular(d: { x: number; y: number; z: number }) {
-  // Cross with +Y, unless d is nearly parallel to it, in which case use +X.
-  const ax = Math.abs(d.y) > 0.92 ? { x: 1, y: 0, z: 0 } : { x: 0, y: 1, z: 0 };
-  const c = {
+function mix(a: Vec, b: Vec, t: number): Vec {
+  return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, z: a.z + (b.z - a.z) * t };
+}
+
+/**
+ * The direction a bough leaves its parent.
+ *
+ * Golden-angle azimuth spreads forks evenly around the trunk. The tilt from
+ * vertical opens up with depth: the first boughs off the trunk lift steeply
+ * while later forks splay wider, which is what gives a canopy its silhouette
+ * rather than a starburst.
+ */
+function boughDirection(index: number, depth: number): Vec {
+  const azimuth = index * GOLDEN_ANGLE;
+  const tilt = 0.62 + Math.min(depth - 1, 3) * 0.14;
+  const s = Math.sin(tilt);
+  return { x: s * Math.cos(azimuth), y: Math.cos(tilt), z: s * Math.sin(azimuth) };
+}
+
+/** Any unit vector perpendicular to `d`, used for a bough's sideways wander. */
+function perpendicular(d: Vec): Vec {
+  const ax: Vec = Math.abs(d.y) > 0.92 ? { x: 1, y: 0, z: 0 } : { x: 0, y: 1, z: 0 };
+  return norm({
     x: d.y * ax.z - d.z * ax.y,
     y: d.z * ax.x - d.x * ax.z,
     z: d.x * ax.y - d.y * ax.x,
-  };
-  const len = Math.hypot(c.x, c.y, c.z) || 1;
-  return { x: c.x / len, y: c.y / len, z: c.z / len };
+  });
 }
 
-const cross = (
-  a: { x: number; y: number; z: number },
-  b: { x: number; y: number; z: number },
-) => ({
-  x: a.y * b.z - a.z * b.y,
-  y: a.z * b.x - a.x * b.z,
-  z: a.x * b.y - a.y * b.x,
-});
-
-const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
-
 /**
- * Time runs up the Y axis; branches splay outward from the node they fork off.
- * Branches are laid out shallowest-first so a child branch can anchor to its
+ * Grows the tree: a trunk up the centre, boughs arcing outward and then back
+ * toward vertical. Laid out shallowest-first so a fork can anchor to its
  * parent's already-resolved position.
  */
 export function layoutTimeline(t: Timeline): Map<string, LayoutPoint> {
@@ -94,45 +95,46 @@ export function layoutTimeline(t: Timeline): Map<string, LayoutPoint> {
     const nodes = byBranch.get(branch.id) ?? [];
     if (nodes.length === 0) continue;
 
-    // The prime timeline is the spine: time still runs up the Y axis, with a
-    // minimum gap so labels never collide.
+    // The trunk: rises up the centre with a slow organic lean, so it reads as
+    // grown rather than extruded. Time still maps to height here.
     if (branch.depth === 0) {
       let floor = -Infinity;
-      for (const node of nodes) {
+      nodes.forEach((node, i) => {
         const y = Math.max(yForYear(node.year), floor);
         floor = y + MIN_GAP;
-        pos.set(node.id, { x: 0, y, z: 0 });
-      }
+        pos.set(node.id, {
+          x: Math.sin(i * 0.62) * 0.55,
+          y,
+          z: Math.cos(i * 0.48) * 0.45,
+        });
+      });
       continue;
     }
 
-    // Everything else is a limb: it leaves the spine in its own direction and
-    // keeps going, so branches occupy the whole volume instead of stacking
-    // upward in a cone. Distance along the limb replaces the year axis here -
-    // order is preserved, absolute height is not.
+    // A bough. It leaves its parent angled outward and then curves steadily
+    // back toward vertical as it extends - the arc a real branch makes
+    // reaching for light. Walking a rotating direction, rather than placing
+    // points along a fixed ray, is what produces that sweep.
     const origin = branch.originNodeId
       ? pos.get(branch.originNodeId)
-      : { x: 0, y: 15, z: 0 };
+      : { x: 0, y: 12, z: 0 };
     if (!origin) continue;
 
-    const dir = branchDirection(branch.index);
-    const u = perpendicular(dir);
-    const v = cross(dir, u);
+    let dir = boughDirection(branch.index, branch.depth);
+    const side = perpendicular(dir);
+    let cursor: Vec = { x: origin.x, y: origin.y, z: origin.z };
 
-    const step = STEP / (1 + (branch.depth - 1) * 0.22);
+    // Deeper twigs are shorter, so the canopy gets finer toward its edge.
+    const step = STEP / (1 + (branch.depth - 1) * 0.3);
 
     nodes.forEach((node, i) => {
-      const along = BASE_REACH + i * step;
-      // Two out-of-phase perpendicular offsets curl the limb into an S rather
-      // than a straight spoke.
-      const curlA = Math.sin((i + 1) * 0.85 + branch.index) * CURL;
-      const curlB = Math.cos((i + 1) * 0.62 + branch.index * 1.7) * CURL * 0.7;
+      // Bend toward vertical a little more with every segment.
+      dir = norm(mix(dir, UP, 0.2));
+      cursor = add(cursor, scale(dir, i === 0 ? BASE_REACH : step));
 
-      pos.set(node.id, {
-        x: origin.x + dir.x * along + u.x * curlA + v.x * curlB,
-        y: origin.y + dir.y * along + u.y * curlA + v.y * curlB,
-        z: origin.z + dir.z * along + u.z * curlA + v.z * curlB,
-      });
+      // A gentle sideways wander so no bough is a straight rod.
+      const wander = Math.sin((i + 1) * 0.9 + branch.index * 1.7) * CURL;
+      pos.set(node.id, add(cursor, scale(side, wander)));
     });
   }
 

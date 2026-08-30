@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 
@@ -9,12 +9,16 @@ interface Props {
   focus: THREE.Vector3 | null;
   /** Slow idle drift so the tree feels alive between actions. */
   idle: boolean;
-  /** Framing computed from the tree's bounds - see fitToTree in Scene. */
-  fit: { centerY: number; distance: number };
+  /**
+   * The tree's extents - see fitToTree in Scene. The camera distance that
+   * holds them is worked out here rather than there, because it depends on
+   * the viewport's aspect ratio and only the rig can see that.
+   */
+  fit: { centerY: number; height: number; spread: number };
 }
 
 const MIN_RADIUS = 8;
-const MAX_RADIUS = 90;
+const MAX_RADIUS = 150;
 const MIN_PHI = 0.25;
 const MAX_PHI = Math.PI - 0.25;
 const IDLE_SPEED = 0.045;
@@ -26,11 +30,35 @@ const IDLE_SPEED = 0.045;
  */
 export default function CameraRig({ focus, idle, fit }: Props) {
   const { camera, gl } = useThree();
+  const size = useThree((state) => state.size);
+
+  /**
+   * Distance that holds the whole tree, fitted on whichever axis is tighter.
+   * A portrait phone has a far narrower horizontal field of view than a
+   * desktop window, so fitting on height alone pushed the crown off both
+   * sides of the screen.
+   */
+  const distance = useMemo(() => {
+    const perspective = camera as THREE.PerspectiveCamera;
+    const halfV = ((perspective.fov ?? 42) / 2) * (Math.PI / 180);
+    const aspect = Math.max(size.width, 1) / Math.max(size.height, 1);
+    const halfH = Math.atan(Math.tan(halfV) * aspect);
+    const forHeight = fit.height / 2 / Math.tan(halfV);
+    // The crown is allowed to run a little past the sides. Fitting its full
+    // width on a portrait phone shrank the tree to a third of the screen for
+    // the sake of a few outermost twigs.
+    const forWidth = (fit.spread * 0.88) / Math.tan(halfH);
+    return THREE.MathUtils.clamp(
+      Math.max(forHeight, forWidth) * 1.04,
+      MIN_RADIUS,
+      MAX_RADIUS,
+    );
+  }, [camera, size.width, size.height, fit.height, fit.spread]);
 
   // Desired state, lerped toward every frame.
-  const want = useRef({ theta: 0.7, phi: 1.05, radius: fit.distance });
+  const want = useRef({ theta: 0.7, phi: 1.05, radius: distance });
   // Starts further out and eases in, so the tree "arrives" on camera.
-  const has = useRef({ theta: 0.7, phi: 1.05, radius: fit.distance * 1.5 });
+  const has = useRef({ theta: 0.7, phi: 1.05, radius: distance * 1.5 });
   const target = useRef(new THREE.Vector3(0, fit.centerY, 0));
   const wantTarget = useRef(new THREE.Vector3(0, fit.centerY, 0));
   const dragging = useRef(false);
@@ -98,16 +126,16 @@ export default function CameraRig({ focus, idle, fit }: Props) {
       // Move in on the node but keep the surrounding tree in frame - filling
       // the screen with one marker loses the context that makes the cascade read.
       want.current.radius = THREE.MathUtils.clamp(
-        fit.distance * 0.72,
-        18,
-        fit.distance,
+        distance * 0.85,
+        MIN_RADIUS,
+        distance,
       );
       interactedAt.current = performance.now();
     } else {
       wantTarget.current.set(0, fit.centerY, 0);
-      want.current.radius = fit.distance;
+      want.current.radius = distance;
     }
-  }, [focus, fit]);
+  }, [focus, fit.centerY, distance]);
 
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.1);
@@ -119,10 +147,10 @@ export default function CameraRig({ focus, idle, fit }: Props) {
 
       // New limbs can reach outside the frame. Pull back to hold them, but
       // only while idle and only outward - never fight a deliberate zoom in.
-      if (!focus && fit.distance > want.current.radius * 1.05) {
+      if (!focus && distance > want.current.radius * 1.05) {
         want.current.radius = THREE.MathUtils.lerp(
           want.current.radius,
-          fit.distance,
+          distance,
           1 - Math.pow(0.2, dt),
         );
         wantTarget.current.set(0, fit.centerY, 0);

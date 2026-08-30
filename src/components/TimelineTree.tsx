@@ -4,7 +4,10 @@ import { useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 
-import Tentacle from "./Tentacle";
+import Bough from "./Bough";
+import Canopy from "./Canopy";
+import Roots from "./Roots";
+import ProceduralTree, { growTree } from "./ProceduralTree";
 import { hashString } from "@/lib/engine/grammar";
 import type { Branch, LayoutPoint, TimelineNode } from "@/lib/types";
 
@@ -12,76 +15,37 @@ import type { Branch, LayoutPoint, TimelineNode } from "@/lib/types";
 const GROW = 0.75;
 export const FADE = 1.1;
 
-const COLORS = {
-  /** Worlds on the untouched spine. */
-  seed: new THREE.Color("#17a866"),
-  /** Worlds the engine created. */
-  generated: new THREE.Color("#25c97f"),
-  /** A world whose history was rewritten under it. */
-  rewritten: new THREE.Color("#e0b840"),
-  selected: new THREE.Color("#8affc8"),
-};
+const GOLD = new THREE.Color("#E8C34A");
+const GOLD_HOT = new THREE.Color("#FFF3C4");
 
 const easeOutBack = (t: number) => {
   const c = 1.70158;
   return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2);
 };
 
-/** How far through its birth animation a node is, 0..1. */
 function growthOf(node: TimelineNode, now: number): number {
   return THREE.MathUtils.clamp((now - node.bornAt) / (GROW * 1000), 0, 1);
 }
 
-/* ------------------------------------------------------------------ worlds */
+/* ------------------------------------------------------------- event dots */
 
-/** Backside shell whose rim burns brightest - a world's atmosphere. */
-const ATMOSPHERE_VERTEX = /* glsl */ `
-  varying vec3 vNormal;
-  varying vec3 vView;
-  void main() {
-    vec4 world = modelMatrix * vec4(position, 1.0);
-    vNormal = normalize(mat3(modelMatrix) * normal);
-    vView = normalize(cameraPosition - world.xyz);
-    gl_Position = projectionMatrix * viewMatrix * world;
-  }
-`;
-
-const ATMOSPHERE_FRAGMENT = /* glsl */ `
-  uniform vec3 uColor;
-  uniform float uAlpha;
-  varying vec3 vNormal;
-  varying vec3 vView;
-  void main() {
-    // Rendered on the back faces, so the strongest fresnel lands on the limb
-    // of the sphere and reads as an atmosphere rather than a glow sprite.
-    float rim = pow(1.0 - abs(dot(normalize(vNormal), normalize(vView))), 2.6);
-    gl_FragColor = vec4(uColor, rim * uAlpha);
-  }
-`;
-
-interface WorldProps {
+interface DotProps {
   node: TimelineNode;
   point: LayoutPoint;
   selected: boolean;
   implode: number;
-  core: THREE.SphereGeometry;
-  shell: THREE.SphereGeometry;
+  geometry: THREE.SphereGeometry;
   onSelect: (id: string) => void;
 }
 
-function World({
-  node,
-  point,
-  selected,
-  implode,
-  core,
-  shell,
-  onSelect,
-}: WorldProps) {
-  const group = useRef<THREE.Group>(null);
-  const body = useRef<THREE.Mesh>(null);
-  const material = useRef<THREE.MeshStandardMaterial>(null);
-  const atmosphere = useRef<THREE.ShaderMaterial>(null);
+/**
+ * An event on the tree: a small gold bead sitting on its branch, exactly as
+ * the reference marks a point in history. Big enough to click, small enough
+ * that the tree - not the marker - is what you look at.
+ */
+function EventDot({ node, point, selected, implode, geometry, onSelect }: DotProps) {
+  const mesh = useRef<THREE.Mesh>(null);
+  const material = useRef<THREE.MeshBasicMaterial>(null);
   const fadeStart = useRef<number | null>(null);
 
   const base = useMemo(
@@ -89,44 +53,12 @@ function World({
     [point.x, point.y, point.z],
   );
 
-  // Every world is its own place: a stable per-node tilt, spin and hue shift.
-  const identity = useMemo(() => {
-    const h = hashString(node.id);
-    return {
-      spin: 0.06 + ((h >>> 3) % 100) / 900,
-      tilt: ((h >>> 7) % 360) * (Math.PI / 180),
-      hue: (((h >>> 11) % 100) / 100 - 0.5) * 0.06,
-    };
-  }, [node.id]);
-
-  const colour = useMemo(() => {
-    const c = (
-      selected
-        ? COLORS.selected
-        : node.origin === "rewritten"
-          ? COLORS.rewritten
-          : node.origin === "generated"
-            ? COLORS.generated
-            : COLORS.seed
-    ).clone();
-    if (!selected && node.origin !== "rewritten") {
-      const hsl = { h: 0, s: 0, l: 0 };
-      c.getHSL(hsl);
-      c.setHSL((hsl.h + identity.hue + 1) % 1, hsl.s, hsl.l);
-    }
-    return c;
-  }, [selected, node.origin, identity.hue]);
-
-  useFrame((state, delta) => {
-    const g = group.current;
-    const b = body.current;
+  useFrame((state) => {
+    const m = mesh.current;
     const mat = material.current;
-    const atm = atmosphere.current;
-    if (!g || !b || !mat || !atm) return;
+    if (!m || !mat) return;
 
     const now = Date.now();
-    const t = state.clock.elapsedTime;
-
     let scale = easeOutBack(growthOf(node, now));
     let alpha = 1;
 
@@ -137,68 +69,37 @@ function World({
       alpha = 1 - f;
     }
 
-    mat.emissiveIntensity = selected ? 1.5 + Math.sin(t * 5) * 0.35 : 0.55;
+    // The selected bead pulses so it is findable without a bigger marker.
+    const pulse = selected ? 1 + Math.sin(state.clock.elapsedTime * 4) * 0.14 : 1;
+    m.scale.setScalar((selected ? 0.62 : 0.4) * Math.max(scale, 0) * pulse);
     mat.opacity = alpha;
-    atm.uniforms.uAlpha.value = alpha * (selected ? 1.1 : 0.6);
+    mat.color.copy(selected ? GOLD_HOT : GOLD);
 
-    const size = (selected ? 0.78 : 0.55) * Math.max(scale, 0);
-    g.scale.setScalar(size);
-    b.rotation.y += identity.spin * delta;
-
-    g.position.set(
+    m.position.set(
       THREE.MathUtils.lerp(base.x, 0, implode),
       THREE.MathUtils.lerp(base.y, 15, implode),
       THREE.MathUtils.lerp(base.z, 0, implode),
     );
   });
 
-  const atmosphereUniforms = useMemo(
-    () => ({ uColor: { value: colour }, uAlpha: { value: 1 } }),
-    [colour],
-  );
-
   return (
-    <group ref={group} rotation={[identity.tilt, 0, identity.tilt * 0.5]}>
-      <mesh
-        ref={body}
-        geometry={core}
-        onClick={(e) => {
-          e.stopPropagation();
-          onSelect(node.id);
-        }}
-        onPointerOver={(e) => {
-          e.stopPropagation();
-          document.body.style.cursor = "pointer";
-        }}
-        onPointerOut={() => {
-          document.body.style.cursor = "auto";
-        }}
-      >
-        <meshStandardMaterial
-          ref={material}
-          color={colour}
-          emissive={colour}
-          emissiveIntensity={0.55}
-          transparent
-          roughness={0.55}
-          metalness={0.15}
-          flatShading
-        />
-      </mesh>
-
-      <mesh geometry={shell} scale={1.35}>
-        <shaderMaterial
-          ref={atmosphere}
-          uniforms={atmosphereUniforms}
-          vertexShader={ATMOSPHERE_VERTEX}
-          fragmentShader={ATMOSPHERE_FRAGMENT}
-          transparent
-          depthWrite={false}
-          side={THREE.BackSide}
-          blending={THREE.AdditiveBlending}
-        />
-      </mesh>
-    </group>
+    <mesh
+      ref={mesh}
+      geometry={geometry}
+      onClick={(e) => {
+        e.stopPropagation();
+        onSelect(node.id);
+      }}
+      onPointerOver={(e) => {
+        e.stopPropagation();
+        document.body.style.cursor = "pointer";
+      }}
+      onPointerOut={() => {
+        document.body.style.cursor = "auto";
+      }}
+    >
+      <meshBasicMaterial ref={material} color={GOLD} transparent toneMapped={false} />
+    </mesh>
   );
 }
 
@@ -221,16 +122,11 @@ export default function TimelineTree({
   implode,
   onSelect,
 }: TreeProps) {
-  // Low-poly spheres, flat-shaded: worlds should read as bodies, not billiards.
-  const core = useMemo(() => new THREE.SphereGeometry(1, 14, 10), []);
-  const shell = useMemo(() => new THREE.SphereGeometry(1, 16, 12), []);
+  const dot = useMemo(() => new THREE.SphereGeometry(1, 12, 10), []);
 
   const visible = nodes.filter((n) => n.status !== "pruned" && layout.has(n.id));
 
-  /**
-   * One tendril per branch, threaded through every surviving world on it and
-   * rooted at the world it forked from.
-   */
+  /** One limb per branch, threaded through its events and rooted at its fork. */
   const limbs = useMemo(() => {
     return branches
       .filter((b) => b.status === "alive")
@@ -241,14 +137,18 @@ export default function TimelineTree({
         if (own.length === 0) return null;
 
         const path: LayoutPoint[] = [];
-        if (branch.originNodeId && layout.has(branch.originNodeId)) {
+        if (branch.depth === 0) {
+          // Run the vein a little below the first event so it does not start
+          // in mid-air - but not past the trunk's own base, or it pokes out of
+          // the bottom of the tree as a bright rod.
+          const first = layout.get(own[0].id)!;
+          path.push({ x: 0, y: first.y - 3, z: 0 });
+        } else if (branch.originNodeId && layout.has(branch.originNodeId)) {
           path.push(layout.get(branch.originNodeId)!);
         }
         for (const n of own) path.push(layout.get(n.id)!);
         if (path.length < 2) return null;
 
-        // The tube is gated on its newest world, so it never runs ahead of
-        // the bodies it threads. Tentacle turns this into progress per frame.
         return {
           id: branch.id,
           path,
@@ -261,10 +161,54 @@ export default function TimelineTree({
       .filter((x): x is NonNullable<typeof x> => x !== null);
   }, [branches, visible, layout]);
 
+  /**
+   * Foliage hangs off the outer half of the tree: the last events on every
+   * bough, plus the top of the trunk. Clustering it there keeps the lower
+   * trunk clear, the way a real canopy sits.
+   */
+  const canopyPoints = useMemo(() => {
+    const out: LayoutPoint[] = [];
+    for (const branch of branches) {
+      if (branch.status !== "alive") continue;
+      const own = visible
+        .filter((n) => n.branchId === branch.id)
+        .sort((a, b) => a.year - b.year);
+      const from = branch.depth === 0 ? Math.max(0, own.length - 3) : Math.floor(own.length / 2);
+      for (let i = from; i < own.length; i++) {
+        const p = layout.get(own[i].id);
+        if (p) out.push(p);
+      }
+    }
+    return out;
+  }, [branches, visible, layout]);
+
+  const trunkBase = useMemo(() => {
+    let min = Infinity;
+    for (const p of layout.values()) min = Math.min(min, p.y);
+    return Number.isFinite(min) ? min - 6 : 0;
+  }, [layout]);
+
+  const trunkTop = useMemo(() => {
+    let max = -Infinity;
+    for (const p of layout.values()) max = Math.max(max, p.y);
+    return Number.isFinite(max) ? max + 2 : 30;
+  }, [layout]);
+
+  // The world tree's own branch tips carry most of the foliage; the timeline's
+  // boughs only add to it. Grown from the same fixed seed as the geometry, so
+  // the leaves land on the branches rather than beside them.
+  const treeTips = useMemo(
+    () => growTree(trunkBase, trunkTop).tips.map((v) => ({ x: v.x, y: v.y, z: v.z })),
+    [trunkBase, trunkTop],
+  );
+
   return (
     <group>
+      <Roots baseY={trunkBase} />
+      <ProceduralTree baseY={trunkBase} topY={trunkTop} />
+
       {limbs.map((limb) => (
-        <Tentacle
+        <Bough
           key={limb.id}
           path={limb.path}
           bornAt={limb.bornAt}
@@ -275,15 +219,16 @@ export default function TimelineTree({
         />
       ))}
 
+      <Canopy points={[...treeTips, ...canopyPoints]} implode={implode} />
+
       {visible.map((node) => (
-        <World
+        <EventDot
           key={node.id}
           node={node}
           point={layout.get(node.id)!}
           selected={selectedId === node.id}
           implode={implode}
-          core={core}
-          shell={shell}
+          geometry={dot}
           onSelect={onSelect}
         />
       ))}

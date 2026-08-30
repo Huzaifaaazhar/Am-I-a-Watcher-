@@ -19,7 +19,7 @@ export default function SidePanel({ title, icon: Icon, onClose, children }: Prop
       animate={{ x: 0, opacity: 1 }}
       exit={{ x: -280, opacity: 0 }}
       transition={{ type: "spring", stiffness: 320, damping: 34 }}
-      className="pointer-events-auto absolute left-6 top-6 z-30 flex max-h-[calc(100vh-3rem)] w-[300px] flex-col overflow-hidden border-2 border-brass bg-black/95"
+      className="pointer-events-auto absolute inset-x-3 top-3 z-30 flex max-h-[calc(100%-1.5rem)] flex-col overflow-hidden border-2 border-brass bg-hud-green/95 backdrop-blur-sm md:inset-x-auto md:left-6 md:top-6 md:max-h-[calc(100%-3rem)] md:w-[300px]"
     >
       <div className="flex items-center justify-between border-b-2 border-brass/70 px-4 py-3">
         <div className="flex items-center gap-2 font-sans text-[15px] font-extrabold uppercase tracking-[0.08em] text-brass">

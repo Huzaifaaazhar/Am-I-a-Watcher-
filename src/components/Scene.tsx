@@ -38,7 +38,7 @@ const CAMERA_FOV = 42;
  */
 function fitToTree(layout: Map<string, LayoutPoint>) {
   const points = [...layout.values()];
-  if (points.length === 0) return { centerY: 15, distance: 40 };
+  if (points.length === 0) return { centerY: 15, height: 40, spread: 18 };
 
   let minY = Infinity;
   let maxY = -Infinity;
@@ -49,15 +49,30 @@ function fitToTree(layout: Map<string, LayoutPoint>) {
     spread = Math.max(spread, Math.hypot(p.x, p.z));
   }
 
-  const height = Math.max(maxY - minY, 6);
-  // Distance that puts the vertical extent inside the frustum, plus headroom
-  // for the labels that float above each marker and the branches' splay.
-  const halfFov = (CAMERA_FOV / 2) * (Math.PI / 180);
-  const distance = height / 2 / Math.tan(halfFov) + spread + 6;
+  // The tree on screen is much bigger than the timeline's own points: the
+  // trunk runs below the first event, and the procedural crown reaches about
+  // as far above the last one again. Framing on the points alone left the tree
+  // as a twig with the crown sliced off, so the extent is derived the same way
+  // TimelineTree derives it - from the trunk span.
+  const baseY = minY - 6;
+  const topY = maxY + 2;
+  const span = Math.max(14, topY - baseY);
+  // A little taller than the wood itself: the canopy wash puffs out a couple
+  // of units past the outermost tips, and framing on the branches alone
+  // sliced the top off it.
+  const height = span * 1.12;
 
+  // Only the extents are returned. Turning them into a camera distance needs
+  // the viewport's aspect ratio, which lives inside the Canvas - on a phone
+  // the horizontal field of view is far narrower than the vertical one, and a
+  // fit computed from height alone pushed the crown off both sides.
   return {
-    centerY: (minY + maxY) / 2,
-    distance: THREE.MathUtils.clamp(distance, 18, 80),
+    // Biased above the geometric middle: the camera looks slightly down at the
+    // tree, which pushes the projection up the frame, so aiming at the exact
+    // centre cropped the crown and left the bottom of the screen empty.
+    centerY: baseY + height * 0.55,
+    height,
+    spread: Math.max(spread, span * 0.45),
   };
 }
 
@@ -73,25 +88,36 @@ function Projector({
   layout,
   implode,
   selectedId,
+  centerY,
   labelRefs,
 }: {
   nodes: TimelineNode[];
   layout: Map<string, LayoutPoint>;
   implode: number;
   selectedId: string | null;
+  /** Height of the tree's centre, so the depth fade can be scale-relative. */
+  centerY: number;
   labelRefs: MutableRefObject<Map<string, HTMLElement>>;
 }) {
   const { camera, size } = useThree();
   const v = useMemo(() => new THREE.Vector3(), []);
+  const centre = useMemo(() => new THREE.Vector3(), []);
   // Measuring a label forces layout, so each is measured once and cached.
   const measured = useMemo(() => new WeakMap<HTMLElement, [number, number]>(), []);
   const placed = useMemo<Array<[number, number, number, number]>>(() => [], []);
 
   useFrame(() => {
+    // Chips fade with depth, but "far" only means anything relative to how far
+    // back the camera currently sits. A fixed cutoff blanked every label on a
+    // phone, where the whole tree has to be framed from much further away.
+    centre.set(0, centerY, 0);
+    const reference = Math.max(camera.position.distanceTo(centre), 1);
+
     type Candidate = {
       el: HTMLElement;
       x: number;
       y: number;
+      side: number;
       distance: number;
       fading: boolean;
       selected: boolean;
@@ -123,12 +149,15 @@ function Projector({
 
       const x = (v.x * 0.5 + 0.5) * size.width;
       const y = (-v.y * 0.5 + 0.5) * size.height;
-      el.style.transform = `translate3d(${x}px, ${y}px, 0)`;
 
       candidates.push({
         el,
         x,
         y,
+        // Trunk events all share x = 0, so centred chips stacked into a column
+        // straight down the trunk and hid it. Each chip is pushed out to the
+        // side its branch leans toward; trunk events go right by convention.
+        side: p.x < -0.4 ? -1 : 1,
         distance,
         fading: node.status === "fading",
         selected: node.id === selectedId,
@@ -153,11 +182,16 @@ function Projector({
         if (box[0] > 0) measured.set(c.el, box);
       }
       const [w, h] = box;
-      // The chip sits above the marker; pad so labels never touch.
-      const left = c.x - w / 2;
-      const top = c.y - 30;
+      // The chip sits beside the marker, clear of the branch it belongs to,
+      // and is flipped or clamped rather than allowed off-screen - on a phone
+      // a right-hand chip on a centred trunk runs straight off the edge.
+      let left = c.side > 0 ? c.x + 18 : c.x - 18 - w;
+      if (left + w > size.width - 8) left = Math.min(c.x - 18 - w, size.width - 8 - w);
+      if (left < 8) left = Math.min(8, size.width - 8 - w);
+      const top = THREE.MathUtils.clamp(c.y - h / 2, 6, Math.max(6, size.height - h - 6));
       const right = left + w + 8;
       const bottom = top + h + 6;
+      c.el.style.transform = `translate3d(${Math.round(left)}px, ${Math.round(top)}px, 0)`;
 
       const collides = placed.some(
         ([l, t, r, b]) => left < r && right > l && top < b && bottom > t,
@@ -169,7 +203,7 @@ function Projector({
       }
       placed.push([left, top, right, bottom]);
 
-      const fade = THREE.MathUtils.clamp(1.35 - c.distance / 75, 0, 1);
+      const fade = THREE.MathUtils.clamp(1.7 - c.distance / (reference * 0.95), 0, 1);
       c.el.style.opacity = String(c.fading ? fade * 0.3 : fade);
     }
   });
@@ -207,14 +241,14 @@ export default function Scene({
       gl={{ antialias: true, alpha: false }}
       onPointerMissed={() => onSelect(null)}
       onCreated={({ gl, scene }) => {
-        gl.setClearColor("#04070a");
-        scene.fog = new THREE.FogExp2("#04070a", 0.0035);
+        gl.setClearColor("#0a1f22");
+        scene.fog = new THREE.FogExp2("#0d2a2c", 0.0026);
       }}
     >
-      <ambientLight intensity={0.4} color="#8ec3a2" />
-      <hemisphereLight args={["#4dffb0", "#04070a", 0.7]} />
-      <pointLight position={[16, 34, 18]} intensity={520} color="#b6ffdc" distance={190} />
-      <pointLight position={[-20, 6, -16]} intensity={340} color="#18b06a" distance={170} />
+      <ambientLight intensity={1.15} color="#a8e6cf" />
+      <hemisphereLight args={["#b98cf0", "#0a2a22", 1.0]} />
+      <pointLight position={[14, 40, 20]} intensity={620} color="#d8b6ff" distance={220} />
+      <pointLight position={[-18, 10, -14]} intensity={420} color="#5fe0a8" distance={200} />
 
       <Cosmos />
 
@@ -238,6 +272,7 @@ export default function Scene({
         layout={layout}
         implode={implode}
         selectedId={selectedId}
+        centerY={fit.centerY}
         labelRefs={labelRefs}
       />
     </Canvas>

@@ -9,15 +9,15 @@ export default function TimelineViewerPanel({
   branchLabel: string;
 }) {
   return (
-    <div className="flex w-[300px] flex-col border-2 border-brass bg-black/95 px-5 py-5">
+    <div className="flex w-full flex-col border-2 border-brass bg-hud-green/95 px-5 py-5 backdrop-blur-sm md:w-[300px]">
       <h3 className="mb-4 font-sans text-[19px] font-extrabold uppercase tracking-[0.04em] text-brass">
         Timeline Viewer
       </h3>
 
       <div className="relative">
         <svg viewBox="0 0 240 100" className="w-full">
-          <line x1="16" y1="86" x2="16" y2="10" stroke="rgba(212,175,55,0.4)" strokeWidth="1" />
-          <line x1="16" y1="86" x2="230" y2="86" stroke="rgba(212,175,55,0.4)" strokeWidth="1" />
+          <line x1="16" y1="86" x2="16" y2="10" stroke="rgba(232,195,74,0.45)" strokeWidth="1" />
+          <line x1="16" y1="86" x2="230" y2="86" stroke="rgba(232,195,74,0.45)" strokeWidth="1" />
           <path
             d="M16 50 L120 50 L230 30"
             stroke="#2FBE6C"
@@ -33,7 +33,7 @@ export default function TimelineViewerPanel({
             strokeLinecap="round"
             strokeDasharray="1 5"
           />
-          <circle cx="120" cy="50" r="4.5" fill="#D4AF37" />
+          <circle cx="120" cy="50" r="4.5" fill="#E8C34A" />
           <text x="132" y="46" className="fill-white" style={{ font: "9px sans-serif", fontWeight: 700 }}>
             Sacred Timeline
           </text>
@@ -44,7 +44,7 @@ export default function TimelineViewerPanel({
         </div>
       </div>
 
-      <div className="mt-6 border-2 border-weave/60 bg-black px-3.5 py-3">
+      <div className="mt-6 border-2 border-brass/60 bg-hud-black/50 px-3.5 py-3">
         <p className="font-sans text-[13px] leading-snug text-white">
           {premise}
           <span className="block font-extrabold text-warn">results in…</span>

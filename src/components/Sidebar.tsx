@@ -8,6 +8,9 @@ interface Props {
   activePanel: SidebarPanel;
   onSelectPanel: (panel: SidebarPanel) => void;
   onResetView: () => void;
+  /** Mobile only: the drawer is off-canvas until the hamburger opens it. */
+  open: boolean;
+  onClose: () => void;
 }
 
 const NAV = [
@@ -17,60 +20,88 @@ const NAV = [
 ];
 
 /**
- * Left HUD column. Big gold nav blocks on black, a diagonal gold accent
- * notched into the top-right corner, and the active row carries a chevron
- * that bites into the canvas margin - matching the reference's TVA-panel cut.
+ * Left navigation column: green ground, near-black nav blocks with gold text,
+ * a gold diagonal notched into the top-right corner and a gold chevron on the
+ * active row that bites into the canvas.
+ *
+ * Below `md` it becomes an off-canvas drawer with a scrim - at phone widths a
+ * fixed 300px column would eat two thirds of the screen.
  */
-export default function Sidebar({ activePanel, onSelectPanel, onResetView }: Props) {
+export default function Sidebar({
+  activePanel,
+  onSelectPanel,
+  onResetView,
+  open,
+  onClose,
+}: Props) {
   return (
-    <aside className="relative z-30 flex h-full w-[300px] shrink-0 flex-col bg-black">
-      {/* Diagonal gold accent notched into the top-right corner. */}
-      <svg
-        className="pointer-events-none absolute -right-px -top-px h-[120px] w-[120px]"
-        viewBox="0 0 120 120"
-        preserveAspectRatio="none"
+    <>
+      {open && (
+        <button
+          type="button"
+          aria-label="Close navigation"
+          onClick={onClose}
+          className="fixed inset-0 z-40 bg-black/60 md:hidden"
+        />
+      )}
+
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 flex w-[248px] flex-col bg-hud-green transition-transform duration-200 md:relative md:z-30 md:w-[260px] md:translate-x-0 lg:w-[300px] ${
+          open ? "translate-x-0" : "-translate-x-full"
+        }`}
       >
-        <polygon points="0,0 120,0 120,26 40,26 0,90" fill="#D4AF37" />
-        <polygon points="0,0 120,0 120,14 46,14 8,64" fill="#0B3D2E" />
-      </svg>
+        {/* Gold diagonal notched into the top-right corner. */}
+        <svg
+          className="pointer-events-none absolute -right-px top-0 h-[104px] w-[104px]"
+          viewBox="0 0 104 104"
+          preserveAspectRatio="none"
+        >
+          <polygon points="0,0 104,0 104,22 34,22 0,78" fill="#E8C34A" />
+          <polygon points="0,0 104,0 104,11 40,11 6,55" fill="#0B4A34" />
+        </svg>
 
-      <nav className="relative px-0 pt-8">
-        {NAV.map(({ key, label }) => {
-          const active = key === "sacred" ? activePanel === null : activePanel === key;
-          return (
-            <div key={key} className="relative mb-3">
-              <button
-                type="button"
-                onClick={() => (key === "sacred" ? onResetView() : onSelectPanel(key))}
-                className={`block w-[254px] border-2 px-6 py-6 text-left font-sans text-[26px] font-extrabold uppercase leading-[1.08] tracking-[0.01em] transition-colors ${
-                  active
-                    ? "border-brass bg-black text-brass"
-                    : "border-weave/50 bg-black text-brass/90 hover:border-weave-bright/70"
-                }`}
-              >
-                <span className="whitespace-pre-line">{label}</span>
-              </button>
-              {active && (
-                <svg
-                  className="pointer-events-none absolute -right-[46px] top-0 h-full w-[54px]"
-                  viewBox="0 0 54 100"
-                  preserveAspectRatio="none"
+        <nav className="relative pt-6 md:pt-8">
+          {NAV.map(({ key, label }) => {
+            const active = key === "sacred" ? activePanel === null : activePanel === key;
+            return (
+              <div key={key} className="relative mb-2.5 md:mb-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (key === "sacred") onResetView();
+                    else onSelectPanel(key);
+                    onClose();
+                  }}
+                  className={`block w-[212px] border-2 bg-hud-black px-5 py-4 text-left font-sans text-[19px] font-extrabold uppercase leading-[1.1] tracking-[0.01em] transition-colors md:w-[224px] md:px-6 md:py-5 md:text-[22px] lg:w-[254px] lg:text-[26px] ${
+                    active
+                      ? "border-brass text-brass"
+                      : "border-weave/45 text-brass/85 hover:border-brass/70 hover:text-brass"
+                  }`}
                 >
-                  <polygon points="0,0 40,50 0,100" fill="#D4AF37" opacity="0.9" />
-                </svg>
-              )}
-            </div>
-          );
-        })}
-      </nav>
+                  <span className="whitespace-pre-line">{label}</span>
+                </button>
+                {active && (
+                  <svg
+                    className="pointer-events-none absolute -right-[40px] top-0 hidden h-full w-[46px] md:block"
+                    viewBox="0 0 46 100"
+                    preserveAspectRatio="none"
+                  >
+                    <polygon points="0,0 34,50 0,100" fill="#E8C34A" />
+                  </svg>
+                )}
+              </div>
+            );
+          })}
+        </nav>
 
-      <div className="relative mt-auto flex justify-center pb-10 pt-6">
-        <div className="rounded-full border-[3px] border-brass bg-brass p-[3px]">
-          <div className="rounded-full bg-black p-3">
-            <HornBadge size={54} ringClassName="text-brass" fillClassName="text-black" />
+        <div className="relative mt-auto flex justify-center pb-8 pt-6 md:pb-10">
+          <div className="rounded-full border-[3px] border-brass bg-brass p-[3px]">
+            <div className="rounded-full bg-hud-black p-2.5 md:p-3">
+              <HornBadge size={44} ringClassName="text-brass" fillClassName="text-hud-black" />
+            </div>
           </div>
         </div>
-      </div>
-    </aside>
+      </aside>
+    </>
   );
 }
