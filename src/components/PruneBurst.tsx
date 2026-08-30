@@ -92,8 +92,8 @@ export default function PruneBurst({ cloud, onDone }: Props) {
     () => ({
       uProgress: { value: 0 },
       uSize: { value: 4.2 },
-      uHot: { value: new THREE.Color("#f0cf68") },
-      uCool: { value: new THREE.Color("#8a4f0d") },
+      uHot: { value: new THREE.Color("#FFB347") },
+      uCool: { value: new THREE.Color("#B0210E") },
     }),
     [],
   );

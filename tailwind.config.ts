@@ -36,6 +36,25 @@ const config: Config = {
           200: "#fdf3d4",
         },
         ash: "#c9c3b0",
+        /**
+         * TVA / Asgardian HUD palette - the exact tokens the sidebar, drawer
+         * and banners are built from. Separate from moss/gold above, which
+         * stay reserved for the 3D scene's own materials.
+         */
+        abyss: {
+          DEFAULT: "#080F0E",
+          deep: "#04271A",
+          panel: "#0B3D2E",
+        },
+        weave: {
+          DEFAULT: "#10B981",
+          bright: "#00FFCC",
+        },
+        warn: {
+          DEFAULT: "#FF9900",
+          deep: "#E65100",
+        },
+        brass: "#D4AF37",
       },
       fontFamily: {
         // Freely-licensed faces only. No official/copyrighted title fonts.
