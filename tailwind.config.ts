@@ -55,6 +55,14 @@ const config: Config = {
           deep: "#E65100",
         },
         brass: "#D4AF37",
+        /** Reference-matched extras: pill-button fills and the top bar. */
+        pill: {
+          blue: "#1C6E9C",
+          blueDark: "#124E70",
+          red: "#A3352B",
+          redDark: "#7A2620",
+        },
+        topbar: "#0B3D2E",
       },
       fontFamily: {
         // Freely-licensed faces only. No official/copyrighted title fonts.

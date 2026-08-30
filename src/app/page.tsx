@@ -2,13 +2,16 @@
 
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { GitBranch, Scroll } from "lucide-react";
 
+import TopBar from "@/components/TopBar";
 import Sidebar, { type SidebarPanel } from "@/components/Sidebar";
-import RightDrawer from "@/components/RightDrawer";
+import EventPanel from "@/components/EventPanel";
+import TimelineViewerPanel from "@/components/TimelineViewerPanel";
+import CurrentDeviationsPanel from "@/components/CurrentDeviationsPanel";
+import MatrixRain from "@/components/MatrixRain";
 import SidePanel from "@/components/SidePanel";
-import DeviationBanner from "@/components/DeviationBanner";
 import InstabilityGauge from "@/components/InstabilityGauge";
 import NodeLabels from "@/components/NodeLabels";
 import { Disclaimer, Hint, ResetStamp, Texture, Working } from "@/components/Chrome";
@@ -35,7 +38,8 @@ const Scene = dynamic(() => import("@/components/Scene"), { ssr: false });
 
 const RESET_IMPLODE_MS = 1100;
 const RESET_HOLD_MS = 1500;
-const DEVIATION_BANNER_MS = 3600;
+/** How long the deviation triptych + matrix rain stay up after a branch. */
+const DEVIATION_FLASH_MS = 7000;
 
 async function callEngine<T>(payload: unknown): Promise<T> {
   const res = await fetch("/api/causality", {
@@ -55,8 +59,8 @@ async function callEngine<T>(payload: unknown): Promise<T> {
 /** Boot frame shown for the one tick before the client seed exists. */
 function Boot() {
   return (
-    <main className="relative flex h-screen w-screen items-center justify-center bg-abyss">
-      <div className="animate-flicker font-mono text-[11px] uppercase tracking-[0.28em] text-weave-bright">
+    <main className="relative flex h-screen w-screen items-center justify-center bg-black">
+      <div className="animate-flicker font-sans text-[13px] font-bold uppercase tracking-[0.28em] text-brass">
         Initialising sequence
       </div>
     </main>
@@ -75,6 +79,12 @@ export default function Page() {
   return <Custodian initial={seed} />;
 }
 
+interface DeviationFlash {
+  id: number;
+  premise: string;
+  branchLabel: string;
+}
+
 function Custodian({ initial }: { initial: Timeline }) {
   const [timeline, setTimeline] = useState<Timeline>(initial);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -83,7 +93,7 @@ function Custodian({ initial }: { initial: Timeline }) {
   const [implode, setImplode] = useState(0);
   const [resetting, setResetting] = useState(false);
   const [panel, setPanel] = useState<SidebarPanel>(null);
-  const [deviation, setDeviation] = useState<{ id: number; year: number } | null>(null);
+  const [deviation, setDeviation] = useState<DeviationFlash | null>(null);
 
   const labelRefs = useRef<Map<string, HTMLElement>>(new Map());
   const resetGuard = useRef(false);
@@ -96,10 +106,10 @@ function Custodian({ initial }: { initial: Timeline }) {
     setTimeline((t) => ({ ...t, ledger: [logEntry(kind, text), ...t.ledger] }));
   }, []);
 
-  const flashDeviation = useCallback((year: number) => {
+  const flashDeviation = useCallback((premise: string, branchLabel: string) => {
     if (deviationTimer.current) clearTimeout(deviationTimer.current);
-    setDeviation({ id: Date.now(), year });
-    deviationTimer.current = setTimeout(() => setDeviation(null), DEVIATION_BANNER_MS);
+    setDeviation({ id: Date.now(), premise, branchLabel });
+    deviationTimer.current = setTimeout(() => setDeviation(null), DEVIATION_FLASH_MS);
   }, []);
 
   useEffect(() => () => {
@@ -115,6 +125,7 @@ function Custodian({ initial }: { initial: Timeline }) {
     setResetting(true);
     setSelectedId(null);
     setPanel(null);
+    setDeviation(null);
 
     // Collapse the whole tree toward the origin, then re-seed behind the stamp.
     const start = performance.now();
@@ -160,6 +171,10 @@ function Custodian({ initial }: { initial: Timeline }) {
     const anchor = nodeById(timeline, nodeId);
     if (!anchor) return;
 
+    // Matches applyBranch's own label derivation, so the flash names the
+    // branch before the graph update round-trips back through state.
+    const branchLabel = premise.slice(0, 48).toUpperCase();
+
     setBusy("Computing causal cascade");
     try {
       const res = await callEngine<Cascade & { degraded?: boolean }>({
@@ -171,7 +186,7 @@ function Custodian({ initial }: { initial: Timeline }) {
       setTimeline((t) =>
         applyBranch(t, nodeId, premise, res.events, res.instability_delta),
       );
-      flashDeviation(anchor.year);
+      flashDeviation(premise, branchLabel);
     } catch (err) {
       note("error", err instanceof Error ? err.message : "Cascade failed.");
     } finally {
@@ -205,7 +220,6 @@ function Custodian({ initial }: { initial: Timeline }) {
         return out.next;
       });
 
-      // Drop the superseded nodes once their fade-out has finished playing.
       if (faded.length) {
         window.setTimeout(
           () => setTimeline((t) => sweepFaded(t, faded)),
@@ -223,7 +237,6 @@ function Custodian({ initial }: { initial: Timeline }) {
     const anchor = nodeById(timeline, nodeId);
     if (!anchor) return;
 
-    // Snapshot the doomed geometry before the graph forgets it.
     const doomed = descendantsOf(timeline.nodes, nodeId, true);
     const doomedNodes = timeline.nodes.filter(
       (n) => doomed.has(n.id) && n.status !== "pruned",
@@ -245,6 +258,7 @@ function Custodian({ initial }: { initial: Timeline }) {
 
     setBusy("Composing epitaph");
     setSelectedId(null);
+    setDeviation(null);
     try {
       const res = await callEngine<Epitaph & { degraded?: boolean }>({
         mode: "epitaph",
@@ -252,7 +266,6 @@ function Custodian({ initial }: { initial: Timeline }) {
         doomedTitles: doomedNodes.map((n) => n.title),
       });
 
-      // Bigger branches destabilise the sequence more.
       const delta = Math.max(5, Math.min(25, 6 + doomedNodes.length * 2));
 
       setBursts((b) => [
@@ -275,6 +288,7 @@ function Custodian({ initial }: { initial: Timeline }) {
 
   const aliveCount = timeline.nodes.filter((n) => n.status !== "pruned").length;
   const aliveBranches = timeline.branches.filter((b) => b.status === "alive");
+  const deviationBranches = aliveBranches.filter((b) => b.id !== PRIME_BRANCH_ID);
 
   const originLabel = useMemo(() => {
     if (!selected) return "";
@@ -282,126 +296,167 @@ function Custodian({ initial }: { initial: Timeline }) {
     return timeline.branches.find((b) => b.id === selected.branchId)?.label ?? "Unknown branch";
   }, [selected, timeline.branches]);
 
-  const hasDeviation = useMemo(
-    () =>
-      Boolean(
-        selectedId &&
-          timeline.branches.some(
-            (b) => b.originNodeId === selectedId && b.status === "alive",
-          ),
-      ),
-    [selectedId, timeline.branches],
+  const selectFirstOfBranch = useCallback(
+    (branchId: string) => {
+      const first = timeline.nodes
+        .filter((n) => n.branchId === branchId && n.status !== "pruned")
+        .sort((a, b) => a.year - b.year)[0];
+      if (first) setSelectedId(first.id);
+      setDeviation(null);
+    },
+    [timeline.nodes],
   );
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-abyss">
-      <Sidebar
-        activePanel={panel}
-        onSelectPanel={(p) => setPanel((cur) => (cur === p ? null : p))}
-        onResetView={() => {
-          setPanel(null);
-          setSelectedId(null);
-        }}
-        branchCount={aliveBranches.length}
-        eventCount={aliveCount}
-      />
+    <div className="flex h-screen w-screen flex-col overflow-hidden bg-black">
+      <TopBar />
 
-      <main className="relative min-w-0 flex-1 overflow-hidden bg-abyss">
-        <Scene
-          key={timeline.epoch}
-          nodes={timeline.nodes}
-          branches={timeline.branches}
-          layout={layout}
-          selectedId={selectedId}
-          bursts={bursts}
-          implode={implode}
-          onSelect={setSelectedId}
-          onBurstDone={onBurstDone}
-          labelRefs={labelRefs}
+      <div className="relative flex min-h-0 flex-1">
+        <Sidebar
+          activePanel={panel}
+          onSelectPanel={(p) => setPanel((cur) => (cur === p ? null : p))}
+          onResetView={() => {
+            setPanel(null);
+            setSelectedId(null);
+            setDeviation(null);
+          }}
         />
 
-        <NodeLabels nodes={timeline.nodes} selectedId={selectedId} labelRefs={labelRefs} />
+        <main className="relative min-w-0 flex-1 overflow-hidden bg-black">
+          <Scene
+            key={timeline.epoch}
+            nodes={timeline.nodes}
+            branches={timeline.branches}
+            layout={layout}
+            selectedId={selectedId}
+            bursts={bursts}
+            implode={implode}
+            onSelect={setSelectedId}
+            onBurstDone={onBurstDone}
+            labelRefs={labelRefs}
+          />
 
-        <Texture />
+          <NodeLabels nodes={timeline.nodes} selectedId={selectedId} labelRefs={labelRefs} />
 
-        <div className="pointer-events-none absolute right-5 top-4 z-30">
-          <InstabilityGauge value={timeline.instability} />
-        </div>
+          <Texture />
+          <MatrixRain active={Boolean(deviation)} />
 
-        <Hint visible={!selectedId && !busy && !resetting && !panel} />
-        <Working label={busy} />
-        <ResetStamp visible={resetting} />
-        <Disclaimer />
+          <div className="pointer-events-none absolute right-6 top-6 z-30">
+            <InstabilityGauge value={timeline.instability} />
+          </div>
 
-        <AnimatePresence>
-          {deviation && <DeviationBanner key={deviation.id} year={deviation.year} />}
-        </AnimatePresence>
+          <Hint visible={!selectedId && !busy && !resetting && !panel && !deviation} />
+          <Working label={busy} />
+          <ResetStamp visible={resetting} />
+          <Disclaimer />
 
-        <AnimatePresence>
-          {panel === "branches" && (
-            <SidePanel title="Branches" icon={GitBranch} onClose={() => setPanel(null)}>
-              <ul className="space-y-1.5">
-                {timeline.branches.map((b) => {
-                  const count = timeline.nodes.filter(
-                    (n) => n.branchId === b.id && n.status !== "pruned",
-                  ).length;
-                  return (
-                    <li
-                      key={b.id}
-                      className={`rounded-sm border px-2.5 py-2 font-mono text-[9.5px] ${
-                        b.status === "alive"
-                          ? "border-weave/25 bg-abyss-panel/40 text-ash/80"
-                          : "border-warn-deep/30 bg-warn-deep/10 text-warn/60 line-through"
-                      }`}
-                    >
-                      <div className="truncate uppercase tracking-[0.06em]">{b.label}</div>
-                      <div className="mt-0.5 text-[8px] normal-case tracking-normal text-ash/40">
-                        depth {b.depth} · {count} events
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            </SidePanel>
-          )}
-
-          {panel === "history" && (
-            <SidePanel title="Prune History" icon={Scroll} onClose={() => setPanel(null)}>
-              {timeline.ledger.filter((e) => e.kind === "prune").length === 0 ? (
-                <p className="py-4 text-center font-mono text-[10px] text-ash/40">
-                  No branches pruned yet.
-                </p>
-              ) : (
+          <AnimatePresence>
+            {panel === "branches" && (
+              <SidePanel title="Branches" icon={GitBranch} onClose={() => setPanel(null)}>
                 <ul className="space-y-2">
-                  {timeline.ledger
-                    .filter((e) => e.kind === "prune")
-                    .map((e) => (
-                      <li key={e.id} className="border-b border-weave/10 pb-2 font-mono text-[9.5px] leading-relaxed text-ash/75">
-                        {e.text}
+                  {timeline.branches.map((b) => {
+                    const count = timeline.nodes.filter(
+                      (n) => n.branchId === b.id && n.status !== "pruned",
+                    ).length;
+                    return (
+                      <li
+                        key={b.id}
+                        className={`border-2 px-3 py-2 font-sans text-[12px] ${
+                          b.status === "alive"
+                            ? "border-brass/50 bg-black text-white"
+                            : "border-pill-red/40 bg-pill-red/10 text-pill-red/70 line-through"
+                        }`}
+                      >
+                        <div className="truncate font-bold uppercase tracking-[0.03em]">
+                          {b.label}
+                        </div>
+                        <div className="mt-0.5 text-[10px] normal-case tracking-normal text-ash/50">
+                          depth {b.depth} · {count} events
+                        </div>
                       </li>
-                    ))}
+                    );
+                  })}
                 </ul>
-              )}
-            </SidePanel>
-          )}
-        </AnimatePresence>
+              </SidePanel>
+            )}
 
-        <AnimatePresence>
-          {selected && (
-            <RightDrawer
-              key={selected.id}
-              node={selected}
-              originLabel={originLabel}
-              hasDeviation={hasDeviation}
-              busy={busy}
-              onClose={() => setSelectedId(null)}
-              onSave={(newTitle) => void runRewrite(selected.id, newTitle)}
-              onBranch={(premise) => void runBranch(selected.id, premise)}
-              onPrune={() => void runPrune(selected.id)}
-            />
-          )}
-        </AnimatePresence>
-      </main>
+            {panel === "history" && (
+              <SidePanel title="Prune History" icon={Scroll} onClose={() => setPanel(null)}>
+                {timeline.ledger.filter((e) => e.kind === "prune").length === 0 ? (
+                  <p className="py-4 text-center font-sans text-[12px] text-ash/50">
+                    No branches pruned yet.
+                  </p>
+                ) : (
+                  <ul className="space-y-2.5">
+                    {timeline.ledger
+                      .filter((e) => e.kind === "prune")
+                      .map((e) => (
+                        <li
+                          key={e.id}
+                          className="border-b border-brass/20 pb-2.5 font-sans text-[12px] leading-relaxed text-white/85"
+                        >
+                          {e.text}
+                        </li>
+                      ))}
+                  </ul>
+                )}
+              </SidePanel>
+            )}
+          </AnimatePresence>
+
+          <AnimatePresence mode="wait">
+            {deviation && selected ? (
+              <motion.div
+                key="triptych"
+                initial={{ opacity: 0, y: -16 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -16 }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                className="pointer-events-auto absolute right-6 top-6 z-30 flex items-start gap-4"
+              >
+                <EventPanel
+                  node={selected}
+                  originLabel={originLabel}
+                  busy={busy}
+                  eyebrow="Timeline Editor"
+                  warning
+                  onSave={(newTitle) => void runRewrite(selected.id, newTitle)}
+                  onBranch={(premise) => void runBranch(selected.id, premise)}
+                  onPrune={() => void runPrune(selected.id)}
+                />
+                <TimelineViewerPanel
+                  premise={deviation.premise}
+                  branchLabel={deviation.branchLabel}
+                />
+                <CurrentDeviationsPanel
+                  branches={deviationBranches}
+                  onSelect={selectFirstOfBranch}
+                />
+              </motion.div>
+            ) : (
+              selected && (
+                <motion.div
+                  key="single"
+                  initial={{ opacity: 0, y: -16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -16 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                  className="pointer-events-auto absolute right-6 top-6 z-30"
+                >
+                  <EventPanel
+                    node={selected}
+                    originLabel={originLabel}
+                    busy={busy}
+                    onSave={(newTitle) => void runRewrite(selected.id, newTitle)}
+                    onBranch={(premise) => void runBranch(selected.id, premise)}
+                    onPrune={() => void runPrune(selected.id)}
+                  />
+                </motion.div>
+              )
+            )}
+          </AnimatePresence>
+        </main>
+      </div>
     </div>
   );
 }
