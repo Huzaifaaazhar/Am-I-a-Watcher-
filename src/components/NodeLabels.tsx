@@ -51,7 +51,7 @@ export default function NodeLabels({ nodes, selectedId, labelRefs, onSelect }: P
               <button
                 type="button"
                 onClick={() => onSelect(node.id)}
-                className={`pointer-events-auto max-w-[46vw] cursor-pointer overflow-hidden text-ellipsis whitespace-nowrap rounded-sm border-2 px-2 py-1 md:max-w-none font-sans text-[9px] font-bold uppercase leading-none tracking-[0.04em] md:text-[10px] backdrop-blur-[2px] transition-colors ${
+                className={`pointer-events-auto max-w-[40vw] cursor-pointer overflow-hidden text-ellipsis whitespace-nowrap rounded-sm border-2 px-2 py-1 md:max-w-none font-sans text-[9px] font-bold uppercase leading-none tracking-[0.04em] md:text-[10px] backdrop-blur-[2px] transition-colors ${
                   selected
                     ? "border-brass bg-hud-black/90 text-brass"
                     : "border-brass/45 bg-hud-black/70 text-brass/80"

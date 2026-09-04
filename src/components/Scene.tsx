@@ -8,6 +8,7 @@ import TimelineTree from "./TimelineTree";
 import CameraRig from "./CameraRig";
 import PruneBurst from "./PruneBurst";
 import Cosmos from "./Cosmos";
+import Bloom from "./Bloom";
 import type { Branch, LayoutPoint, TimelineNode } from "@/lib/types";
 import type { PointCloud } from "@/lib/vfx";
 
@@ -236,21 +237,29 @@ export default function Scene({
 
   return (
     <Canvas
-      dpr={[1, 2]}
-      camera={{ fov: CAMERA_FOV, near: 0.1, far: 400, position: [0, 16, 40] }}
+      // Capped below 2: the bloom chain is five extra full-screen passes, and
+      // on a high-density phone screen a full 2x buffer spends the frame
+      // budget on pixels nobody can resolve.
+      dpr={[1, 1.6]}
+      camera={{ fov: CAMERA_FOV, near: 0.1, far: 2000, position: [0, 16, 40] }}
       gl={{ antialias: true, alpha: false }}
       onPointerMissed={() => onSelect(null)}
       onCreated={({ gl, scene }) => {
-        gl.setClearColor("#0a1f22");
-        scene.fog = new THREE.FogExp2("#0d2a2c", 0.0026);
+        // Linear values throughout; Bloom converts to display space once, at
+        // the end of the chain.
+        gl.setClearColor("#020a0b");
+        scene.fog = new THREE.FogExp2("#04191a", 0.0020);
       }}
     >
-      <ambientLight intensity={1.15} color="#a8e6cf" />
-      <hemisphereLight args={["#b98cf0", "#0a2a22", 1.0]} />
-      <pointLight position={[14, 40, 20]} intensity={620} color="#d8b6ff" distance={220} />
-      <pointLight position={[-18, 10, -14]} intensity={420} color="#5fe0a8" distance={200} />
+      {/*
+        The tree and canopy are shaded by their own materials, so these only
+        light the few standard materials left in the scene.
+      */}
+      <ambientLight intensity={0.9} color="#a8e6cf" />
+      <hemisphereLight args={["#7fc8f0", "#08221c", 0.8]} />
 
       <Cosmos />
+      <Bloom />
 
       <CameraRig focus={focus} idle={bursts.length === 0} fit={fit} />
 

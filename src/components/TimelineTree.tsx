@@ -6,7 +6,6 @@ import * as THREE from "three";
 
 import Bough from "./Bough";
 import Canopy from "./Canopy";
-import Roots from "./Roots";
 import ProceduralTree, { growTree } from "./ProceduralTree";
 import { hashString } from "@/lib/engine/grammar";
 import type { Branch, LayoutPoint, TimelineNode } from "@/lib/types";
@@ -173,7 +172,7 @@ export default function TimelineTree({
       const own = visible
         .filter((n) => n.branchId === branch.id)
         .sort((a, b) => a.year - b.year);
-      const from = branch.depth === 0 ? Math.max(0, own.length - 3) : Math.floor(own.length / 2);
+      const from = branch.depth === 0 ? Math.max(0, own.length - 2) : Math.floor(own.length / 2);
       for (let i = from; i < own.length; i++) {
         const p = layout.get(own[i].id);
         if (p) out.push(p);
@@ -194,17 +193,25 @@ export default function TimelineTree({
     return Number.isFinite(max) ? max + 2 : 30;
   }, [layout]);
 
-  // The world tree's own branch tips carry most of the foliage; the timeline's
-  // boughs only add to it. Grown from the same fixed seed as the geometry, so
-  // the leaves land on the branches rather than beside them.
-  const treeTips = useMemo(
-    () => growTree(trunkBase, trunkTop).tips.map((v) => ({ x: v.x, y: v.y, z: v.z })),
-    [trunkBase, trunkTop],
-  );
+  /**
+   * The world tree's own branch tips carry most of the foliage; the timeline's
+   * boughs only add to it. Grown from the same fixed seed as the geometry, so
+   * the leaves land on the branches rather than beside them.
+   *
+   * Only tips in the upper half get foliage. Hanging it off every tip drew the
+   * canopy down over the trunk as a milky wash, and the trunk is the thing the
+   * reference keeps clear and lit.
+   */
+  const treeTips = useMemo(() => {
+    const span = Math.max(14, trunkTop - trunkBase);
+    const floorY = trunkBase + span * 0.56;
+    return growTree(trunkBase, trunkTop)
+      .tips.filter((v) => v.y > floorY)
+      .map((v) => ({ x: v.x, y: v.y, z: v.z }));
+  }, [trunkBase, trunkTop]);
 
   return (
     <group>
-      <Roots baseY={trunkBase} />
       <ProceduralTree baseY={trunkBase} topY={trunkTop} />
 
       {limbs.map((limb) => (

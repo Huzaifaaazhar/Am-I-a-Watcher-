@@ -7,13 +7,13 @@ import * as THREE from "three";
 import type { LayoutPoint } from "@/lib/types";
 
 /**
- * One branch of the Sacred Timeline, drawn as a thin luminous vein riding
- * over the World Tree's wood.
+ * One branch of the Sacred Timeline, drawn as a thin gold vein riding over
+ * the World Tree's wood.
  *
  * The woody mass belongs to `ProceduralTree`; these are deliberately much
- * thinner than the limbs they follow. When they were as thick as the trunk
- * they out-scaled the tree and the whole thing read as green plumbing - as a
- * vein, the same geometry reads as history running through the branches.
+ * thinner than the limbs they follow. Green veins on a green tree disappeared
+ * into it - gold is what the reference marks a live timeline with, and it
+ * matches the HUD the tree sits inside.
  */
 
 const VERTEX = /* glsl */ `
@@ -115,9 +115,9 @@ export interface BoughProps {
   implode: number;
 }
 
-const BARK = new THREE.Color("#125637");
-const LIT = new THREE.Color("#5fd08a");
-const SAP = new THREE.Color("#9dffcb");
+const BARK = new THREE.Color("#6d4d12");
+const LIT = new THREE.Color("#e8c34a");
+const SAP = new THREE.Color("#fff0b8");
 
 const GROW_MS = 750;
 const FADE_MS = 1100;
