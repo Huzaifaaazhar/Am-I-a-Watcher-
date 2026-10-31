@@ -5,6 +5,7 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 
 import type { LayoutPoint } from "@/lib/types";
+import { isFrozen } from "@/lib/debug";
 
 /**
  * One branch of the Sacred Timeline, drawn as a thin gold vein riding over
@@ -171,11 +172,9 @@ export default function Bough({
     if (!m) return;
     const now = Date.now();
     m.uniforms.uTime.value = state.clock.elapsedTime;
-    m.uniforms.uProgress.value = THREE.MathUtils.clamp(
-      (now - bornAt) / GROW_MS,
-      0.02,
-      1,
-    );
+    m.uniforms.uProgress.value = isFrozen()
+      ? 1
+      : THREE.MathUtils.clamp((now - bornAt) / GROW_MS, 0.02, 1);
 
     let alpha = 1;
     if (fading) {

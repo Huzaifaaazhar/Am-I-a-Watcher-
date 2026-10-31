@@ -16,3 +16,6 @@ npm-debug.log*
 .vercel
 next-env.d.ts
 tsconfig.tsbuildinfo
+
+# Visual QA output - regenerate with `npm run shots`
+shots/

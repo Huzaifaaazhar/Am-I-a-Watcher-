@@ -37,8 +37,33 @@ engine is the default and has no dependencies. Copy `.env.example` to
 |---|---|
 | `/` | The universe |
 | `/monitor` | Operational dashboard |
+| `/dev/scenes` | Every named camera shot, with live FPS / draw-call / triangle counters |
+| `/dev/gallery` | Every component in every state |
 | `/api/health` | Liveness + provider readiness (JSON) |
 | `/api/metrics` | Prometheus scrape endpoint |
+
+`/dev/*` returns 404 in a production build.
+
+### Checks
+
+```bash
+npm run test     # typecheck -> lint -> evals. Run before every commit
+npm run shots    # screenshots every route at 390x844 and 1440x900 into /shots
+```
+
+`npm run shots` starts its own dev server, pins the animation clock so repeat
+runs produce identical pixels, and exits non-zero on any page error or
+horizontal overflow. It needs Playwright — it will use a machine-wide install
+if there is one, otherwise `npm i -D playwright && npx playwright install
+chromium`.
+
+Append `?freeze=<seconds>` to any route to pin the animation clock and jump
+growth animations to their finished state; `?debug=1` shows the perf readout
+without freezing.
+
+Build rules, design tokens, the 3D realism checklist and the performance
+budgets live in [`CLAUDE.md`](./CLAUDE.md). Non-obvious choices are recorded in
+[`docs/DECISIONS.md`](./docs/DECISIONS.md).
 
 ---
 

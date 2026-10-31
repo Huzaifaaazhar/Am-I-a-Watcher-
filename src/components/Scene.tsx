@@ -9,6 +9,7 @@ import CameraRig from "./CameraRig";
 import PruneBurst from "./PruneBurst";
 import Cosmos from "./Cosmos";
 import Bloom from "./Bloom";
+import { freezeAt } from "@/lib/debug";
 import type { Branch, LayoutPoint, TimelineNode } from "@/lib/types";
 import type { PointCloud } from "@/lib/vfx";
 
@@ -212,6 +213,24 @@ function Projector({
   return null;
 }
 
+/* ------------------------------------------------------------- freezing */
+
+/**
+ * Pins the animation clock so the screenshot harness gets identical pixels on
+ * every frame and every run.
+ *
+ * Priority is negative so this lands before any other frame callback and they
+ * all read the pinned value. Verified against the installed R3F source: the
+ * render gate counts only subscriptions with priority > 0, so a negative one
+ * does not disable automatic rendering.
+ */
+function FreezeClock({ at }: { at: number }) {
+  useFrame((state) => {
+    state.clock.elapsedTime = at;
+  }, -1000);
+  return null;
+}
+
 /* ------------------------------------------------------------------ scene */
 
 export default function Scene({
@@ -228,6 +247,8 @@ export default function Scene({
   // Recomputed as the tree grows. CameraRig only acts on it when the custodian
   // is idle, so this frames new limbs without ever yanking the view mid-drag.
   const fit = useMemo(() => fitToTree(layout), [layout]);
+  // Read once: the query string does not change without a reload.
+  const frozen = useMemo(() => freezeAt(), []);
 
   const focus = useMemo(() => {
     if (!selectedId) return null;
@@ -257,6 +278,8 @@ export default function Scene({
       */}
       <ambientLight intensity={0.9} color="#a8e6cf" />
       <hemisphereLight args={["#7fc8f0", "#08221c", 0.8]} />
+
+      {frozen !== null && <FreezeClock at={frozen} />}
 
       <Cosmos />
       <Bloom />

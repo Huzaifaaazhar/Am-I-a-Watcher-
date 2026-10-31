@@ -8,6 +8,7 @@ import Bough from "./Bough";
 import Canopy from "./Canopy";
 import ProceduralTree, { growTree } from "./ProceduralTree";
 import { hashString } from "@/lib/engine/grammar";
+import { isFrozen } from "@/lib/debug";
 import type { Branch, LayoutPoint, TimelineNode } from "@/lib/types";
 
 /** Animation timings, seconds. */
@@ -23,6 +24,9 @@ const easeOutBack = (t: number) => {
 };
 
 function growthOf(node: TimelineNode, now: number): number {
+  // Frozen shots want the finished tree, not whatever half-grown state the
+  // clock happened to land on.
+  if (isFrozen()) return 1;
   return THREE.MathUtils.clamp((now - node.bornAt) / (GROW * 1000), 0, 1);
 }
 

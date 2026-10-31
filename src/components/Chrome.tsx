@@ -112,7 +112,8 @@ export function ResetStamp({ visible }: { visible: boolean }) {
           SEQUENCE RESET
         </div>
         <div className="mt-1.5 font-mono text-[10px] uppercase tracking-[0.28em] text-gold-600">
-          // custodian privileges revoked
+          {/* Braced so the leading slashes read as copy, not a stray comment. */}
+          {"// custodian privileges revoked"}
         </div>
       </div>
     </div>
