@@ -66,3 +66,25 @@ One line per non-obvious choice, newest last. Why, not what — the diff says wh
   by a request header or a host environment variable.
 - **Shots that depend on reducer state link into the real app** instead of being rebuilt on
   `/dev/scenes`, which would let the dev page drift from what ships and still look right.
+
+## Phase 1 — assets
+
+- **Assets are fetched by a script, never by hand**, and `public/ASSETS.md` is generated from
+  the same manifest. A licence record maintained separately from the fetch drifts the first
+  time someone swaps a texture.
+- **Lossy WebP everywhere, quality per map type**, after lossless was tried and failed: a
+  photographic normal map has noise in every pixel, so lossless finds nothing to exploit and
+  the 2048 normal came out at 7.3 MB on its own. The full set was 23 MB; it is now 7.1.
+- **AO + roughness packed into one ARM texture**, the glTF convention — halves the fetches and
+  the texture units versus two single-channel files.
+- **Leaf cards come from a purpose-built cut-out atlas (ambientCG LeafSet024), not from
+  segmenting a photoscanned plant.** The segmentation approach was built and abandoned: every
+  leaf on a plant sheet belongs to one connected UV island, so the largest region is the whole
+  plant, and the crops came out as clumps streaked with atlas padding.
+- **The atlas grid is detected from the opacity channel, not hardcoded.** Projecting alpha onto
+  each axis gives one band per leaf; hardcoding 3 would silently mis-slice a swapped atlas.
+- **Leaves cap at 1024/512** rather than the standard 2048/1024. They are never more than a few
+  dozen pixels on screen, so the extra detail is unresolvable weight.
+- **A misty-morning HDRI, not a bright forest.** It is for image-based lighting only and is
+  never drawn as a backdrop; soft wraparound light flatters bark without fighting a dark HUD.
+

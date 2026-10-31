@@ -109,9 +109,21 @@ frame rate is not. Judge fps on a real device.
 | PBR textures | Poly Haven, ambientCG (`ambientcg.com/api/v2`) |
 | Models | Poly Haven, Quaternius, Kenney (CC0); Sketchfab filtered to downloadable + CC-BY |
 
-Prefer procedural geometry + good PBR materials for hero objects. Compress every GLB with
-gltf-transform (Draco/Meshopt + KTX2); textures max 2048 desktop / 1024 mobile; preload with
-`useGLTF.preload`. **Log every asset's source and licence in `public/ASSETS.md`.**
+Prefer procedural geometry + good PBR materials for hero objects — this project has no GLBs at
+all, the tree is generated. Compress any GLB that does arrive with gltf-transform
+(Draco/Meshopt + KTX2) and preload with `useGLTF.preload`.
+
+Assets are fetched and processed by `python3 scripts/fetch_assets.py` (needs Pillow + numpy),
+which also generates `public/ASSETS.md` from the same manifest — so the licence record cannot
+drift from what shipped. **Never add an asset by hand; add it to the manifest and re-run.**
+
+Every texture exists at `_2k` (2048; leaves 1024) and `_1k`, picked at runtime by
+`textureTier()` in `src/three/textures.ts`. That module also enforces the colour-space split
+from checklist item 1 — albedo sRGB, normal/ARM linear — so no call site has to remember it.
+AO and roughness ship packed as ARM (AO red, roughness green, metalness blue).
+
+KTX2 is *not* in use: it needs the KTX-Software or Basis encoder and neither is available in
+this environment. WebP is the fallback. If `toktx` ever is available, that is the upgrade.
 
 No official or copyrighted font, logo or film asset is reproduced. Drop-in points are marked
 `// FAN ASSET SLOT`.
