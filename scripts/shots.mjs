@@ -69,6 +69,9 @@ const TARGETS = [
   { id: "tree-orbit", url: "/?freeze=9", wait: 2600 },
   { id: "panel", url: "/?freeze=3", wait: 2600, action: "select" },
   { id: "nav", url: "/?freeze=2", wait: 2000, action: "nav", phoneOnly: true },
+  // The non-WebGL path, forced so it is photographed on every run rather than
+  // only on a machine that genuinely cannot do WebGL.
+  { id: "flat", url: "/?flat=1&freeze=2", wait: 1600 },
   { id: "dev-scenes", url: "/dev/scenes?freeze=2", wait: 2600 },
   { id: "dev-gallery", url: "/dev/gallery", wait: 1200 },
   { id: "monitor", url: "/monitor", wait: 1200 },
@@ -209,7 +212,7 @@ async function main() {
 
   const port = externalPort ?? 3700;
   const server = externalPort ? null : await startServer(port);
-  const browser = await chromium.launch();
+  let browser = await chromium.launch();
 
   try {
     if (!externalPort) {
@@ -218,7 +221,16 @@ async function main() {
       await warm(browser, port, routes);
     }
 
+    let first = true;
     for (const viewport of VIEWPORTS) {
+      // A browser per viewport: one process rendering every 3D page twice
+      // over accumulates enough GPU memory to start refusing captures.
+      if (!first) {
+        await browser.close();
+        browser = await chromium.launch();
+      }
+      first = false;
+
       for (const target of TARGETS) {
         if (only && !target.id.includes(only)) continue;
         if (target.phoneOnly && viewport.id !== "phone") continue;
@@ -253,7 +265,21 @@ async function main() {
           }
 
           const file = path.join(OUT, `${target.id}-${viewport.id}.png`);
-          await page.screenshot({ path: file, timeout: 60_000 });
+          // One retry. Chromium intermittently refuses a capture with
+          // "Unable to capture screenshot" after several WebGL-heavy pages in
+          // the same browser - renderer memory pressure, not a page fault.
+          // The page itself is fine, so a short settle and a second attempt
+          // beats failing a whole QA run on it.
+          try {
+            await page.screenshot({ path: file, timeout: 60_000 });
+          } catch (first) {
+            await page.waitForTimeout(1500);
+            try {
+              await page.screenshot({ path: file, timeout: 60_000 });
+            } catch {
+              throw first;
+            }
+          }
           console.log(`  ${path.relative(process.cwd(), file)}${overflow > 0 ? `  OVERFLOW ${overflow}px` : ""}`);
         } catch (error) {
           problems.push(`${target.id}/${viewport.id}: ${error.message.split("\n")[0]}`);

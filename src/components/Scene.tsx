@@ -4,7 +4,7 @@ import { useMemo, useRef, type MutableRefObject } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 
-import { Environment, ContactShadows } from "@react-three/drei";
+import { Environment, ContactShadows, PerformanceMonitor, AdaptiveDpr } from "@react-three/drei";
 import {
   EffectComposer,
   Bloom,
@@ -21,6 +21,7 @@ import PruneBurst from "./PruneBurst";
 import Cosmos from "./Cosmos";
 import Ground from "./Ground";
 import { HDRI_URL } from "@/three/textures";
+import { useGraphics } from "./GraphicsProvider";
 import { freezeAt } from "@/lib/debug";
 import type { Branch, LayoutPoint, TimelineNode } from "@/lib/types";
 import type { PointCloud } from "@/lib/vfx";
@@ -94,6 +95,33 @@ function fitToTree(layout: Map<string, LayoutPoint>) {
 
 /* -------------------------------------------------------------- projector */
 
+/** One label's per-frame placement state. Pooled; see Projector. */
+interface Candidate {
+  el: HTMLElement;
+  x: number;
+  y: number;
+  side: number;
+  distance: number;
+  fading: boolean;
+  selected: boolean;
+}
+
+/** True when `a` should sort after `b`: selected wins, then nearest. */
+function afterInOrder(a: Candidate, b: Candidate): boolean {
+  if (a.selected !== b.selected) return !a.selected;
+  return a.distance > b.distance;
+}
+
+const EMPTY_CANDIDATE = (): Candidate => ({
+  el: null as unknown as HTMLElement,
+  x: 0,
+  y: 0,
+  side: 1,
+  distance: 0,
+  fading: false,
+  selected: false,
+});
+
 /**
  * Projects every visible node to screen space and writes the transform straight
  * onto its DOM label. Bypassing React here keeps 200 labels at 60fps - a state
@@ -118,6 +146,16 @@ function Projector({
   const { camera, size } = useThree();
   const v = useMemo(() => new THREE.Vector3(), []);
   const centre = useMemo(() => new THREE.Vector3(), []);
+
+  /**
+   * Candidate objects, reused across frames.
+   *
+   * This loop previously allocated an array and one object literal per label
+   * every frame - about two hundred short-lived objects a frame at 60fps,
+   * which is exactly the pattern that hands the collector a stutter. The pool
+   * grows to the high-water mark and is then rewritten in place.
+   */
+  const pool = useMemo<Candidate[]>(() => [], []);
   // Measuring a label forces layout, so each is measured once and cached.
   const measured = useMemo(() => new WeakMap<HTMLElement, [number, number]>(), []);
   const placed = useMemo<Array<[number, number, number, number]>>(() => [], []);
@@ -129,16 +167,7 @@ function Projector({
     centre.set(0, centerY, 0);
     const reference = Math.max(camera.position.distanceTo(centre), 1);
 
-    type Candidate = {
-      el: HTMLElement;
-      x: number;
-      y: number;
-      side: number;
-      distance: number;
-      fading: boolean;
-      selected: boolean;
-    };
-    const candidates: Candidate[] = [];
+    let used = 0;
 
     for (const node of nodes) {
       const el = labelRefs.current.get(node.id);
@@ -166,32 +195,48 @@ function Projector({
       const x = (v.x * 0.5 + 0.5) * size.width;
       const y = (-v.y * 0.5 + 0.5) * size.height;
 
-      candidates.push({
-        el,
-        x,
-        y,
-        // Trunk events all share x = 0, so centred chips stacked into a column
-        // straight down the trunk and hid it. Each chip is pushed out to the
-        // side its branch leans toward; trunk events go right by convention.
-        side: p.x < -0.4 ? -1 : 1,
-        distance,
-        fading: node.status === "fading",
-        selected: node.id === selectedId,
-      });
+      // Rewritten in place rather than pushed, so the frame allocates nothing.
+      const slot = pool[used] ?? (pool[used] = EMPTY_CANDIDATE());
+      slot.el = el;
+      slot.x = x;
+      slot.y = y;
+      // Trunk events all share x = 0, so centred chips stacked into a column
+      // straight down the trunk and hid it. Each chip is pushed out to the
+      // side its branch leans toward; trunk events go right by convention.
+      slot.side = p.x < -0.4 ? -1 : 1;
+      slot.distance = distance;
+      slot.fading = node.status === "fading";
+      slot.selected = node.id === selectedId;
+      used += 1;
     }
 
     // Now that branches reach out in every direction, worlds routinely land on
     // top of each other in screen space. Place labels nearest-first and drop
     // any that would overlap one already placed - the selected world always
     // wins its spot.
-    candidates.sort((a, b) => {
-      if (a.selected !== b.selected) return a.selected ? -1 : 1;
-      return a.distance - b.distance;
-    });
+    /*
+     * Insertion sort over the live range, in place.
+     *
+     * Array.sort would do the whole pool including stale tail entries, and
+     * slicing first allocates an array a frame - which is the very thing the
+     * pool exists to avoid. Insertion sort needs no scratch space and the
+     * order barely changes between frames, so it runs close to linear here.
+     * Selected first, then nearest.
+     */
+    for (let i = 1; i < used; i++) {
+      const item = pool[i];
+      let j = i - 1;
+      while (j >= 0 && afterInOrder(pool[j], item)) {
+        pool[j + 1] = pool[j];
+        j -= 1;
+      }
+      pool[j + 1] = item;
+    }
 
     placed.length = 0;
 
-    for (const c of candidates) {
+    for (let i = 0; i < used; i++) {
+      const c = pool[i];
       let box = measured.get(c.el);
       if (!box || box[0] === 0) {
         box = [c.el.offsetWidth || 120, c.el.offsetHeight || 16];
@@ -263,6 +308,54 @@ export default function Scene({
   const fit = useMemo(() => fitToTree(layout), [layout]);
   // Read once: the query string does not change without a reload.
   const frozen = useMemo(() => freezeAt(), []);
+  const { budget, reportPerformance } = useGraphics();
+
+  /**
+   * The post chain, as a list.
+   *
+   * EffectComposer types its children as elements, so `{flag && <Effect/>}`
+   * does not typecheck - a falsy branch is `false`, not an element. Building
+   * the array keeps the tier switch honest instead of reaching for a cast.
+   */
+  const effects = useMemo(() => {
+    const chain = [
+      // Edges first, before anything widens them. Kept at every tier:
+      // aliasing on thin twigs is the most visible defect in the scene.
+      <SMAA key="smaa" />,
+      // High threshold on purpose: bloom is for things that are actually
+      // emitting - the gold vein and the event beads - not for fogging the
+      // whole frame.
+      <Bloom
+        key="bloom"
+        intensity={0.7}
+        luminanceThreshold={0.85}
+        luminanceSmoothing={0.3}
+        mipmapBlur
+        radius={0.7}
+      />,
+      <Vignette
+        key="vignette"
+        offset={0.3}
+        darkness={0.62}
+        blendFunction={BlendFunction.NORMAL}
+      />,
+    ];
+    // Grain is a texture cue, not an effect, and the first thing to go when
+    // frames are scarce.
+    if (budget.post) {
+      chain.push(
+        <Noise
+          key="noise"
+          opacity={0.035}
+          premultiply
+          blendFunction={BlendFunction.OVERLAY}
+        />,
+      );
+    }
+    // Last: maps the linear HDR buffer down for display, exactly once.
+    chain.push(<ToneMapping key="tone" mode={ToneMappingMode.ACES_FILMIC} />);
+    return chain;
+  }, [budget.post]);
 
   const focus = useMemo(() => {
     if (!selectedId) return null;
@@ -272,10 +365,10 @@ export default function Scene({
 
   return (
     <Canvas
-      // Capped below 2: the post chain is several extra full-screen passes,
-      // and a full 2x buffer on a dense phone screen spends the frame budget
-      // on pixels nobody can resolve.
-      dpr={[1, 1.6]}
+      // Per tier, and lowered further at runtime by AdaptiveDpr when frames
+      // get scarce. The post chain is several extra full-screen passes, so
+      // resolution is the cheapest thing to give up.
+      dpr={budget.dpr}
       camera={{ fov: CAMERA_FOV, near: 0.1, far: 2000, position: [0, 16, 40] }}
       shadows
       gl={{
@@ -295,6 +388,23 @@ export default function Scene({
       {frozen !== null && <FreezeClock at={frozen} />}
 
       {/*
+        Measured frame rate, not a device guess, decides the tier after the
+        first couple of seconds. Frozen runs opt out: the harness pins the
+        clock, so "frame rate" there is meaningless and would flap the tier
+        mid-screenshot.
+      */}
+      {frozen === null && (
+        <>
+          <PerformanceMonitor
+            onIncline={() => reportPerformance(true)}
+            onDecline={() => reportPerformance(false)}
+            onFallback={() => reportPerformance(false)}
+          />
+          <AdaptiveDpr pixelated={false} />
+        </>
+      )}
+
+      {/*
         Image-based lighting, from a misty-morning HDRI. This is the whole
         light rig: checklist item 2 rules out lighting a PBR scene with an
         ambient and a directional, which is what this scene used to do, and
@@ -312,7 +422,7 @@ export default function Scene({
         intensity={2.6}
         color="#dff0ff"
         castShadow
-        shadow-mapSize={[1024, 1024]}
+        shadow-mapSize={[budget.shadowMap, budget.shadowMap]}
         shadow-camera-near={1}
         shadow-camera-far={120}
         shadow-camera-left={-40}
@@ -355,34 +465,14 @@ export default function Scene({
       <ContactShadows
         position={[0, fit.centerY - fit.height * 0.55, 0]}
         scale={fit.spread * 2.6}
-        resolution={512}
+        resolution={budget.contactShadowRes}
         blur={2.8}
         opacity={0.85}
         far={16}
         color="#010c08"
       />
 
-      <EffectComposer multisampling={0} enableNormalPass={false}>
-        {/* Edges first, before anything widens them. */}
-        <SMAA />
-        {/*
-          High threshold on purpose: bloom is for things that are actually
-          emitting - the gold timeline vein and the event beads - not for
-          fogging the whole frame.
-        */}
-        <Bloom
-          intensity={0.7}
-          luminanceThreshold={0.85}
-          luminanceSmoothing={0.3}
-          mipmapBlur
-          radius={0.7}
-        />
-        <Vignette offset={0.3} darkness={0.62} blendFunction={BlendFunction.NORMAL} />
-        {/* Barely there. Grain is a texture cue, not an effect. */}
-        <Noise opacity={0.035} premultiply blendFunction={BlendFunction.OVERLAY} />
-        {/* Last: maps the linear HDR buffer down for display, exactly once. */}
-        <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
-      </EffectComposer>
+      <EffectComposer multisampling={0} enableNormalPass={false}>{effects}</EffectComposer>
 
       <Projector
         nodes={nodes}

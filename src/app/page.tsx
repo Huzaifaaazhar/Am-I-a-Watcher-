@@ -16,6 +16,10 @@ import InstabilityGauge from "@/components/InstabilityGauge";
 import NodeLabels from "@/components/NodeLabels";
 import { Disclaimer, Hint, ResetStamp, Texture, Working } from "@/components/Chrome";
 import type { Burst } from "@/components/Scene";
+import { GraphicsProvider, useGraphics } from "@/components/GraphicsProvider";
+import { supportsWebGL } from "@/lib/capabilities";
+import { forceFlat } from "@/lib/debug";
+import GraphicsSetting from "@/components/GraphicsSetting";
 import { FADE } from "@/components/TimelineTree";
 
 import {
@@ -35,6 +39,7 @@ import type { Cascade, Epitaph } from "@/lib/schemas";
 
 // The scene touches document/WebGL on mount, so it never server-renders.
 const Scene = dynamic(() => import("@/components/Scene"), { ssr: false });
+const FlatTimeline = dynamic(() => import("@/components/FlatTimeline"), { ssr: false });
 
 const RESET_IMPLODE_MS = 1100;
 const RESET_HOLD_MS = 1500;
@@ -76,7 +81,11 @@ export default function Page() {
   const [seed, setSeed] = useState<Timeline | null>(null);
   useEffect(() => setSeed(createSeedTimeline()), []);
   if (!seed) return <Boot />;
-  return <Custodian initial={seed} />;
+  return (
+    <GraphicsProvider>
+      <Custodian initial={seed} />
+    </GraphicsProvider>
+  );
 }
 
 interface DeviationFlash {
@@ -95,6 +104,19 @@ function Custodian({ initial }: { initial: Timeline }) {
   const [panel, setPanel] = useState<SidebarPanel>(null);
   const [deviation, setDeviation] = useState<DeviationFlash | null>(null);
   const [navOpen, setNavOpen] = useState(false);
+
+  /*
+   * Whether the scene can be shown at all. Resolved after mount so the server
+   * and first client render agree; until then the 3D path is assumed, which
+   * is the common case and avoids a flash of the list view.
+   */
+  const { mode } = useGraphics();
+  const flatReason = useMemo<"no-webgl" | "reduced-motion" | "forced">(() => {
+    // Order matters: under the ?flat=1 override neither of the real reasons
+    // holds, and claiming one would make the notice a lie.
+    if (forceFlat()) return "forced";
+    return supportsWebGL() ? "reduced-motion" : "no-webgl";
+  }, []);
 
   const labelRefs = useRef<Map<string, HTMLElement>>(new Map());
   const resetGuard = useRef(false);
@@ -326,25 +348,39 @@ function Custodian({ initial }: { initial: Timeline }) {
         />
 
         <main className="relative min-w-0 flex-1 overflow-hidden bg-black">
-          <Scene
-            key={timeline.epoch}
-            nodes={timeline.nodes}
-            branches={timeline.branches}
-            layout={layout}
-            selectedId={selectedId}
-            bursts={bursts}
-            implode={implode}
-            onSelect={setSelectedId}
-            onBurstDone={onBurstDone}
-            labelRefs={labelRefs}
-          />
+          {mode === "3d" ? (
+            <>
+              <Scene
+                key={timeline.epoch}
+                nodes={timeline.nodes}
+                branches={timeline.branches}
+                layout={layout}
+                selectedId={selectedId}
+                bursts={bursts}
+                implode={implode}
+                onSelect={setSelectedId}
+                onBurstDone={onBurstDone}
+                labelRefs={labelRefs}
+              />
 
-          <NodeLabels
-            nodes={timeline.nodes}
-            selectedId={selectedId}
-            labelRefs={labelRefs}
-            onSelect={setSelectedId}
-          />
+              <NodeLabels
+                nodes={timeline.nodes}
+                selectedId={selectedId}
+                labelRefs={labelRefs}
+                onSelect={setSelectedId}
+              />
+            </>
+          ) : (
+            <FlatTimeline
+              nodes={timeline.nodes}
+              branches={timeline.branches}
+              selectedId={selectedId}
+              onSelect={setSelectedId}
+              reason={flatReason}
+            />
+          )}
+
+          <GraphicsSetting className="absolute bottom-4 left-4 z-30 hidden md:block" />
 
           <Texture />
           <MatrixRain active={Boolean(deviation)} />

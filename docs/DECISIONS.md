@@ -126,3 +126,34 @@ One line per non-obvious choice, newest last. Why, not what — the diff says wh
 Carried to Phase 3: the canopy puts the scene at ~193k triangles. Inside the 300k desktop
 budget, over the 120k mobile one, so leaf count has to scale with the texture tier.
 
+## Phase 3 — budgets and fallback
+
+- **Three capability questions, kept separate.** Can it do WebGL, has the person asked for
+  reduced motion, and is the hardware weak. The first two are hard gates; the third only picks
+  a quality tier, because weak hardware should get a smaller scene, not a worse product.
+- **Reduced motion falls back to the flat view rather than stilling the camera.** The tree
+  breathes and sways continuously; a stilled camera is still a moving object. A still frame of
+  it is a photograph, which is what the flat mode shows.
+- **The flat view is a real, operable timeline, not a poster.** "Works fully without 3D" cannot
+  mean an image: the entire interaction is selecting an event and acting on it, and in the
+  scene the only way to do that is to click a label the camera placed. It drives the same
+  selection state and the same action panel.
+- **The chosen setting and the tier in force are separate values.** On Auto the tier is
+  corrected by measured frame rate; if someone picks High explicitly, the measurement must not
+  quietly override them.
+- **Leaf count is the tier lever.** The canopy is almost the whole triangle count, so cards per
+  tip is what brings a phone under 120k - 7 at high, 3 at low.
+- **The post chain is built as an array, not with conditional children.** EffectComposer types
+  its children as elements, so `{flag && <Effect/>}` does not typecheck; building the list
+  keeps the tier switch honest instead of reaching for a cast.
+- **Projector pools its candidate objects and sorts in place.** It allocated an array plus an
+  object per label per frame - about two hundred short-lived objects a frame at 60fps.
+  `slice()` to sort a subrange would reintroduce exactly that, so it uses an insertion sort,
+  which needs no scratch space and runs near-linear on a nearly-sorted list.
+- **`?flat=1` forces the fallback**, because otherwise it is only reachable on a machine that
+  genuinely cannot do WebGL, and would never be looked at again after the day it was written.
+  It reports its own reason rather than borrowing one of the real ones.
+- **The shots harness uses a browser per viewport and retries a capture once.** Chromium
+  intermittently refuses a screenshot after several WebGL-heavy pages in one process - renderer
+  memory pressure, not a page fault.
+

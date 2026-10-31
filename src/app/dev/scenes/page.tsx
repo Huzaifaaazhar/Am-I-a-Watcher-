@@ -17,6 +17,7 @@ import {
 import { ToneMappingMode } from "postprocessing";
 import { HDRI_URL } from "@/three/textures";
 import { PerfProbe, PerfReadout, type PerfSample } from "@/components/PerfOverlay";
+import { GraphicsProvider } from "@/components/GraphicsProvider";
 import { createSeedTimeline } from "@/lib/seed";
 import { layoutTimeline } from "@/lib/graph";
 import type { Timeline } from "@/lib/types";
@@ -72,6 +73,16 @@ const SHOTS: Shot[] = [
 ];
 
 export default function ScenesPage() {
+  // The scene components read the graphics tier from context, so this page
+  // needs the same provider the app mounts. Without it the whole canvas threw.
+  return (
+    <GraphicsProvider>
+      <Scenes />
+    </GraphicsProvider>
+  );
+}
+
+function Scenes() {
   const [shot, setShot] = useState<Shot>(SHOTS[0]);
   const [sample, setSample] = useState<PerfSample | null>(null);
   const [viewport, setViewport] = useState<"desktop" | "mobile">("desktop");

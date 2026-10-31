@@ -7,6 +7,7 @@ import * as THREE from "three";
 import { useLeaf } from "@/three/useMaterials";
 import type { Tip } from "./ProceduralTree";
 import { isFrozen } from "@/lib/debug";
+import { useGraphics } from "./GraphicsProvider";
 
 /**
  * The canopy: real leaves on instanced cards.
@@ -25,8 +26,6 @@ import { isFrozen } from "@/lib/debug";
  */
 
 const CARD_SIZE = 1.35;
-/** Leaves per branch tip. */
-const PER_TIP = 7;
 /** How far a leaf may sit from its tip. */
 const SPREAD = 1.9;
 
@@ -49,8 +48,14 @@ function mulberry32(seed: number) {
 export default function Leaves({ tips, implode }: LeafProps) {
   const leaf = useLeaf();
   const mesh = useRef<THREE.InstancedMesh>(null);
+  const { budget } = useGraphics();
 
-  const count = tips.length * PER_TIP;
+  // The canopy is almost the entire triangle count, so this is the lever that
+  // brings a phone under the 120k budget: at the high tier the scene measures
+  // ~193k triangles, which is inside the 300k desktop limit and well over the
+  // mobile one. Cards are two triangles each, so the count scales linearly.
+  const perTip = budget.leavesPerTip;
+  const count = tips.length * perTip;
 
   // Scratch objects, reused every frame. Allocating a Matrix4 or a Vector3
   // inside useFrame is the single easiest way to hand the garbage collector
@@ -91,7 +96,7 @@ export default function Leaves({ tips, implode }: LeafProps) {
     const cell = 1 / leaf.grid;
     let i = 0;
     for (const tip of tips) {
-      for (let n = 0; n < PER_TIP; n++) {
+      for (let n = 0; n < perTip; n++) {
         // Cluster around the tip, biased along the branch direction so the
         // foliage trails the limb instead of balling up on its end.
         const along = random() * 1.5;
@@ -127,7 +132,7 @@ export default function Leaves({ tips, implode }: LeafProps) {
     }
 
     return { origin, rotation, scale, phase, uvOffset, tint, cell };
-  }, [tips, count, leaf.grid]);
+  }, [tips, count, perTip, leaf.grid]);
 
   // The per-instance atlas cell, as an instanced attribute.
   const geometry = useMemo(() => {

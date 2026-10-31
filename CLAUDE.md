@@ -97,9 +97,12 @@ Initial 3D chunk < 500 KB gzipped (excluding assets). `dpr` capped `[1, 2]` desk
 
 - **No allocation inside `useFrame`.** Reuse vectors. Dispose geometries/materials/textures on
   unmount. Instance repeats. Max 1 real-time shadow light; bake the rest.
-- **Fallback:** no WebGL, `prefers-reduced-motion`, or low-end (`hardwareConcurrency <= 4` plus
-  an fps probe) → pre-rendered poster with light CSS parallax. **The app must work fully
-  without 3D.**
+- **Fallback:** no WebGL or `prefers-reduced-motion` → `FlatTimeline`, a real operable list
+  driving the same selection state and action panel. Not a poster: "works fully without 3D"
+  cannot mean an image when the whole interaction is selecting an event. Force it with
+  `?flat=1`. Low-end hardware is *not* a gate — it only picks a quality tier.
+- **Quality tiers** live in `src/lib/capabilities.ts` (`TIER`) and are served through
+  `GraphicsProvider`. Leaf cards per tip is the lever that brings mobile under 120k triangles.
 
 Live counters: `/dev/scenes`. Component states: `/dev/gallery`. Both 404 in production.
 
