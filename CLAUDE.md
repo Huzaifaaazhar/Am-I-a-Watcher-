@@ -76,7 +76,13 @@ Avoid AI tells: accent-coloured random word in every headline, an eyebrow over e
 10. **Motion has weight:** springs with overshoot and settle. Never linear.
 
 Art direction note: the reference is a painted Yggdrasil. The decision on record is **literal
-photoreal** (`docs/DECISIONS.md`), so the checklist applies as written.
+photoreal** (`docs/DECISIONS.md`), so the checklist applies as written. The painterly bark
+shader has been deleted rather than disabled — under a real light rig, painting light into a
+surface is double-lighting.
+
+Light rig: one HDRI (`Environment`) plus **one** real-time shadow-casting directional, per the
+budget. The scene has a faded ground disc because a contact shadow needs a surface to land on;
+in a void it grounds nothing.
 
 ## Performance budgets
 

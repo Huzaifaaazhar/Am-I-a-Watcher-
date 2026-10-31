@@ -88,3 +88,41 @@ One line per non-obvious choice, newest last. Why, not what — the diff says wh
 - **A misty-morning HDRI, not a bright forest.** It is for image-based lighting only and is
   never drawn as a backdrop; soft wraparound light flatters bark without fighting a dark HUD.
 
+## Phase 2 — photoreal
+
+- **The painterly bark shader is deleted, not disabled.** It painted light into the surface -
+  heartwood glow, crevice bleed, a silhouette ramp - and under a real light rig that is
+  double-lighting. Photoreal means there is nowhere left to cheat.
+- **UVs are built from real distances**, circumference around the ring and length along the
+  limb, so texel density is constant from trunk to twig. Normalised 0..1 UVs would stretch one
+  bark tile around a two-metre trunk and a two-centimetre twig alike.
+- **Rings are closed with a duplicate vertex** rather than wrapping the index back to zero, so
+  the seam quad gets a real `u` instead of smearing the whole texture across itself.
+- **One ARM texture is wired to aoMap, roughnessMap and metalnessMap.** three reads occlusion
+  from red, roughness from green and metalness from blue, so one packed map drives all three
+  at the cost of a single texture unit.
+- **Leaves are alpha-cut instanced cards, not sprites.** A sprite has no silhouette, so a
+  canopy built from them reads as fog however it is tuned. `alphaTest` rather than
+  transparency keeps them in the depth buffer, so they occlude each other correctly from any
+  angle without a per-frame sort of thousands of cards.
+- **Per-instance atlas cell via `onBeforeCompile`.** The stock material has no notion of
+  per-instance UVs; the offset is folded in at `uv_vertex`, before any map is sampled, so
+  colour, normal and ARM all land on the same leaf.
+- **Per-instance tint, biased dark.** Nine atlas cells across thousands of cards still reads as
+  one repeated sticker, and leaves deep inside a canopy are shadowed by the ones above them -
+  which no amount of AO on a flat card supplies.
+- **A ground plane, because a contact shadow needs somewhere to land.** Item 4 says nothing
+  floats and contact shadows are the obvious answer, but this scene is a dark void: the shadow
+  rendered onto nothing and grounded nothing. The disc fades radially so it never reads as a
+  disc with an edge.
+- **ContactShadows bakes continuously, not once.** `frames={1}` bakes on the first render,
+  which happens before the bark and leaf textures arrive, so it captured an empty scene.
+- **Tone mapping happens once, as the last effect.** Renderer tone mapping is off; leaving both
+  on maps twice and crushes exactly the highlights the bloom exists to find.
+- **High bloom threshold (0.85).** Bloom is for things that are actually emitting - the gold
+  vein and the event beads - not for fogging the frame.
+- **FOV 42 to 36.** A wide lens is the fastest way to make a large object read as a toy.
+
+Carried to Phase 3: the canopy puts the scene at ~193k triangles. Inside the 300k desktop
+budget, over the 120k mobile one, so leaf count has to scale with the texture tier.
+

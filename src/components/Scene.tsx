@@ -4,11 +4,23 @@ import { useMemo, useRef, type MutableRefObject } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 
+import { Environment, ContactShadows } from "@react-three/drei";
+import {
+  EffectComposer,
+  Bloom,
+  Vignette,
+  Noise,
+  SMAA,
+  ToneMapping,
+} from "@react-three/postprocessing";
+import { BlendFunction, ToneMappingMode } from "postprocessing";
+
 import TimelineTree from "./TimelineTree";
 import CameraRig from "./CameraRig";
 import PruneBurst from "./PruneBurst";
 import Cosmos from "./Cosmos";
-import Bloom from "./Bloom";
+import Ground from "./Ground";
+import { HDRI_URL } from "@/three/textures";
 import { freezeAt } from "@/lib/debug";
 import type { Branch, LayoutPoint, TimelineNode } from "@/lib/types";
 import type { PointCloud } from "@/lib/vfx";
@@ -31,7 +43,9 @@ interface Props {
   labelRefs: MutableRefObject<Map<string, HTMLElement>>;
 }
 
-const CAMERA_FOV = 42;
+// Checklist item 6 wants 30-40 for a hero shot. A wide lens is the fastest
+// way to make a large object read as a toy.
+const CAMERA_FOV = 36;
 
 /**
  * Frames the whole tree. Recomputed only when Scene mounts - Scene is keyed on
@@ -62,7 +76,7 @@ function fitToTree(layout: Map<string, LayoutPoint>) {
   // A little taller than the wood itself: the canopy wash puffs out a couple
   // of units past the outermost tips, and framing on the branches alone
   // sliced the top off it.
-  const height = span * 1.12;
+  const height = span * 1.2;
 
   // Only the extents are returned. Turning them into a camera distance needs
   // the viewport's aspect ratio, which lives inside the Canvas - on a phone
@@ -258,31 +272,57 @@ export default function Scene({
 
   return (
     <Canvas
-      // Capped below 2: the bloom chain is five extra full-screen passes, and
-      // on a high-density phone screen a full 2x buffer spends the frame
-      // budget on pixels nobody can resolve.
+      // Capped below 2: the post chain is several extra full-screen passes,
+      // and a full 2x buffer on a dense phone screen spends the frame budget
+      // on pixels nobody can resolve.
       dpr={[1, 1.6]}
       camera={{ fov: CAMERA_FOV, near: 0.1, far: 2000, position: [0, 16, 40] }}
-      gl={{ antialias: true, alpha: false }}
+      shadows
+      gl={{
+        // Tone mapping happens once, as the last effect in the composer.
+        // Leaving it on here as well would map twice and crush the highlights
+        // the bloom is meant to find.
+        toneMapping: THREE.NoToneMapping,
+        antialias: false,
+        alpha: false,
+      }}
       onPointerMissed={() => onSelect(null)}
       onCreated={({ gl, scene }) => {
-        // Linear values throughout; Bloom converts to display space once, at
-        // the end of the chain.
         gl.setClearColor("#020a0b");
         scene.fog = new THREE.FogExp2("#04191a", 0.0020);
       }}
     >
-      {/*
-        The tree and canopy are shaded by their own materials, so these only
-        light the few standard materials left in the scene.
-      */}
-      <ambientLight intensity={0.9} color="#a8e6cf" />
-      <hemisphereLight args={["#7fc8f0", "#08221c", 0.8]} />
-
       {frozen !== null && <FreezeClock at={frozen} />}
 
+      {/*
+        Image-based lighting, from a misty-morning HDRI. This is the whole
+        light rig: checklist item 2 rules out lighting a PBR scene with an
+        ambient and a directional, which is what this scene used to do, and
+        is why its materials never read as real surfaces. `background` stays
+        off - the HDRI lights the tree, Cosmos paints behind it.
+      */}
+      <Environment files={HDRI_URL} environmentIntensity={0.68} />
+
+      {/*
+        One real-time shadow light, per the performance budget. Angled to
+        match the HDRI's own key so the cast shadow agrees with the ambient.
+      */}
+      <directionalLight
+        position={[-14, 26, 12]}
+        intensity={2.6}
+        color="#dff0ff"
+        castShadow
+        shadow-mapSize={[1024, 1024]}
+        shadow-camera-near={1}
+        shadow-camera-far={120}
+        shadow-camera-left={-40}
+        shadow-camera-right={40}
+        shadow-camera-top={60}
+        shadow-camera-bottom={-20}
+        shadow-bias={-0.0008}
+      />
+
       <Cosmos />
-      <Bloom />
 
       <CameraRig focus={focus} idle={bursts.length === 0} fit={fit} />
 
@@ -298,6 +338,51 @@ export default function Scene({
       {bursts.map((b) => (
         <PruneBurst key={b.id} cloud={b.cloud} onDone={() => onBurstDone(b.id)} />
       ))}
+
+      {/*
+        The surface the contact shadow actually lands on. Without it the
+        shadow is a dark smudge on a dark void and grounds nothing.
+      */}
+      <Ground y={fit.centerY - fit.height * 0.55} radius={fit.spread * 3.4} />
+
+      {/*
+        Checklist item 4: nothing floats. The tree used to sit on a gradient
+        with no contact at all, which no amount of material work can fix.
+        Baked continuously rather than once: a single bake lands on the first
+        render, before the bark and leaf textures have arrived, and captures
+        an empty scene. 512 keeps the extra depth pass cheap.
+      */}
+      <ContactShadows
+        position={[0, fit.centerY - fit.height * 0.55, 0]}
+        scale={fit.spread * 2.6}
+        resolution={512}
+        blur={2.8}
+        opacity={0.85}
+        far={16}
+        color="#010c08"
+      />
+
+      <EffectComposer multisampling={0} enableNormalPass={false}>
+        {/* Edges first, before anything widens them. */}
+        <SMAA />
+        {/*
+          High threshold on purpose: bloom is for things that are actually
+          emitting - the gold timeline vein and the event beads - not for
+          fogging the whole frame.
+        */}
+        <Bloom
+          intensity={0.7}
+          luminanceThreshold={0.85}
+          luminanceSmoothing={0.3}
+          mipmapBlur
+          radius={0.7}
+        />
+        <Vignette offset={0.3} darkness={0.62} blendFunction={BlendFunction.NORMAL} />
+        {/* Barely there. Grain is a texture cue, not an effect. */}
+        <Noise opacity={0.035} premultiply blendFunction={BlendFunction.OVERLAY} />
+        {/* Last: maps the linear HDR buffer down for display, exactly once. */}
+        <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
+      </EffectComposer>
 
       <Projector
         nodes={nodes}

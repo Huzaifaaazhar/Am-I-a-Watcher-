@@ -5,8 +5,8 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 
 import Bough from "./Bough";
-import Canopy from "./Canopy";
-import ProceduralTree, { growTree } from "./ProceduralTree";
+import Leaves from "./Leaves";
+import ProceduralTree, { growTree, type Tip } from "./ProceduralTree";
 import { hashString } from "@/lib/engine/grammar";
 import { isFrozen } from "@/lib/debug";
 import type { Branch, LayoutPoint, TimelineNode } from "@/lib/types";
@@ -164,27 +164,6 @@ export default function TimelineTree({
       .filter((x): x is NonNullable<typeof x> => x !== null);
   }, [branches, visible, layout]);
 
-  /**
-   * Foliage hangs off the outer half of the tree: the last events on every
-   * bough, plus the top of the trunk. Clustering it there keeps the lower
-   * trunk clear, the way a real canopy sits.
-   */
-  const canopyPoints = useMemo(() => {
-    const out: LayoutPoint[] = [];
-    for (const branch of branches) {
-      if (branch.status !== "alive") continue;
-      const own = visible
-        .filter((n) => n.branchId === branch.id)
-        .sort((a, b) => a.year - b.year);
-      const from = branch.depth === 0 ? Math.max(0, own.length - 2) : Math.floor(own.length / 2);
-      for (let i = from; i < own.length; i++) {
-        const p = layout.get(own[i].id);
-        if (p) out.push(p);
-      }
-    }
-    return out;
-  }, [branches, visible, layout]);
-
   const trunkBase = useMemo(() => {
     let min = Infinity;
     for (const p of layout.values()) min = Math.min(min, p.y);
@@ -198,20 +177,17 @@ export default function TimelineTree({
   }, [layout]);
 
   /**
-   * The world tree's own branch tips carry most of the foliage; the timeline's
-   * boughs only add to it. Grown from the same fixed seed as the geometry, so
-   * the leaves land on the branches rather than beside them.
+   * Branch tips that carry foliage.
    *
-   * Only tips in the upper half get foliage. Hanging it off every tip drew the
-   * canopy down over the trunk as a milky wash, and the trunk is the thing the
-   * reference keeps clear and lit.
+   * Only the upper half: hanging leaves off every tip buried the trunk, and
+   * the trunk is the thing the reference keeps clear and lit. Grown from the
+   * same fixed seed as the geometry, so the leaves land on the branches
+   * rather than beside them.
    */
-  const treeTips = useMemo(() => {
+  const treeTips = useMemo<Tip[]>(() => {
     const span = Math.max(14, trunkTop - trunkBase);
     const floorY = trunkBase + span * 0.56;
-    return growTree(trunkBase, trunkTop)
-      .tips.filter((v) => v.y > floorY)
-      .map((v) => ({ x: v.x, y: v.y, z: v.z }));
+    return growTree(trunkBase, trunkTop).tips.filter((t) => t.position.y > floorY);
   }, [trunkBase, trunkTop]);
 
   return (
@@ -230,7 +206,7 @@ export default function TimelineTree({
         />
       ))}
 
-      <Canopy points={[...treeTips, ...canopyPoints]} implode={implode} />
+      <Leaves tips={treeTips} implode={implode} />
 
       {visible.map((node) => (
         <EventDot

@@ -48,9 +48,11 @@ const FRAGMENT = /* glsl */ `
     // Deep green underfoot rising into a blue-teal sky - the reference's
     // vertical wash. Values are linear; the composite converts once at the end.
     float h = dir.y * 0.5 + 0.5;
-    vec3 low  = vec3(0.010, 0.052, 0.038);
-    vec3 mid  = vec3(0.016, 0.070, 0.078);
-    vec3 high = vec3(0.028, 0.072, 0.128);
+    // Deliberately dim. A backdrop this close in value to the tree gives the
+    // frame no dark anchor and everything reads as haze.
+    vec3 low  = vec3(0.0030, 0.0150, 0.0110);
+    vec3 mid  = vec3(0.0045, 0.0200, 0.0225);
+    vec3 high = vec3(0.0080, 0.0205, 0.0370);
     vec3 base = h < 0.5
       ? mix(low, mid, smoothstep(0.0, 0.5, h))
       : mix(mid, high, smoothstep(0.5, 1.0, h));
@@ -58,16 +60,16 @@ const FRAGMENT = /* glsl */ `
     // Slow cloud banks, brightest around the horizon behind the canopy.
     float n = fbm(dir * 2.3 + vec3(0.0, uTime * 0.008, uTime * 0.004));
     float bank = smoothstep(0.30, 0.95, n) * (1.0 - abs(dir.y) * 0.55);
-    base += vec3(0.030, 0.070, 0.088) * bank;
+    base += vec3(0.009, 0.021, 0.026) * bank;
 
     // A faint magenta bloom high up, echoing the blossom colour.
     float crown = smoothstep(0.25, 1.0, dir.y) * smoothstep(0.4, 0.9, n);
-    base += vec3(0.055, 0.018, 0.062) * crown;
+    base += vec3(0.016, 0.005, 0.018) * crown;
 
     // A soft glow low and centre, so the trunk reads against a lit ground
     // rather than sitting on flat black.
     float ground = smoothstep(0.35, -0.15, dir.y) * smoothstep(0.55, 1.0, 1.0 - abs(dir.y));
-    base += vec3(0.020, 0.062, 0.044) * ground;
+    base += vec3(0.006, 0.019, 0.013) * ground;
 
     gl_FragColor = vec4(base, 1.0);
   }

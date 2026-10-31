@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useRef } from "react";
-import { useFrame } from "@react-three/fiber";
+import { useEffect, useMemo } from "react";
 import * as THREE from "three";
+
+import { useBark } from "@/three/useMaterials";
 
 /**
  * The World Tree's own woody mass: roots, a fluted trunk and a recursive
@@ -29,27 +30,40 @@ function mulberry32(seed: number) {
   };
 }
 
+/** A branch end, and the direction the branch was travelling when it got there. */
+export interface Tip {
+  position: THREE.Vector3;
+  direction: THREE.Vector3;
+}
+
 export interface GrownTree {
   geometry: THREE.BufferGeometry;
   /** Branch tips, where foliage hangs. */
-  tips: THREE.Vector3[];
+  tips: Tip[];
 }
 
 interface Mesh {
   position: number[];
   normal: number[];
-  thin: number[];
-  axis: number[];
-  angle: number[];
+  uv: number[];
   index: number[];
 }
+
+/**
+ * World units covered by one tile of the bark texture.
+ *
+ * UVs are built from real distances - around the ring and along the limb -
+ * rather than normalised 0..1, so texel density stays constant whether the
+ * surface is the trunk or a twig. Normalised UVs would stretch the same bark
+ * tile around a two-metre trunk and a two-centimetre twig alike.
+ */
+const BARK_TILE = 3.2;
 
 interface SweepOptions {
   r0: number;
   r1: number;
   tubular: number;
   radial: number;
-  maxRadius: number;
   /** Depth of the lengthwise flutes in the cross-section, 0 for a round limb. */
   flute: number;
 }
@@ -59,7 +73,7 @@ interface SweepOptions {
  * stitches consecutive rings into a closed tube.
  */
 function sweep(mesh: Mesh, curve: THREE.CatmullRomCurve3, o: SweepOptions) {
-  const { r0, r1, tubular, radial, maxRadius, flute } = o;
+  const { r0, r1, tubular, radial, flute } = o;
   const frames = curve.computeFrenetFrames(tubular, false);
   const base = mesh.position.length / 3;
   const length = curve.getLength();
@@ -73,9 +87,13 @@ function sweep(mesh: Mesh, curve: THREE.CatmullRomCurve3, o: SweepOptions) {
     // Taper faster at the start than the end: limbs shed most of their bulk
     // just past the fork, then run out thin for a long way.
     const r = r0 + (r1 - r0) * Math.pow(t, 0.72);
-    const thin = 1 - Math.min(1, r / maxRadius);
+    const circumference = 2 * Math.PI * r;
 
-    for (let j = 0; j < radial; j++) {
+    // The ring is closed with a duplicate vertex at j == radial so the seam
+    // gets its own u of exactly `circumference / BARK_TILE` instead of
+    // wrapping back to zero, which would smear the whole texture across one
+    // quad.
+    for (let j = 0; j <= radial; j++) {
       const a = (j / radial) * Math.PI * 2;
       // Flutes: shallow lengthwise grooves, so the trunk is not a smooth cone.
       const ripple = 1 + flute * Math.sin(a * 5 + t * 2.2);
@@ -88,18 +106,20 @@ function sweep(mesh: Mesh, curve: THREE.CatmullRomCurve3, o: SweepOptions) {
         p.z + nz * r * ripple,
       );
       mesh.normal.push(nx, ny, nz);
-      mesh.thin.push(thin);
-      mesh.axis.push(t * length);
-      mesh.angle.push(j / radial);
+      mesh.uv.push(
+        ((j / radial) * circumference) / BARK_TILE,
+        (t * length) / BARK_TILE,
+      );
     }
   }
 
+  const stride = radial + 1;
   for (let i = 0; i < tubular; i++) {
     for (let j = 0; j < radial; j++) {
-      const a = base + i * radial + j;
-      const b = base + i * radial + ((j + 1) % radial);
-      const c = a + radial;
-      const d = b + radial;
+      const a = base + i * stride + j;
+      const b = a + 1;
+      const c = a + stride;
+      const d = b + stride;
       mesh.index.push(a, c, b, b, c, d);
     }
   }
@@ -107,8 +127,8 @@ function sweep(mesh: Mesh, curve: THREE.CatmullRomCurve3, o: SweepOptions) {
 
 export function growTree(baseY: number, topY: number, seed = 424242): GrownTree {
   const rand = mulberry32(seed);
-  const mesh: Mesh = { position: [], normal: [], thin: [], axis: [], angle: [], index: [] };
-  const tips: THREE.Vector3[] = [];
+  const mesh: Mesh = { position: [], normal: [], uv: [], index: [] };
+  const tips: Tip[] = [];
 
   // Every dimension is a fraction of the trunk's own height, so the tree stays
   // correctly proportioned whatever range the timeline happens to span.
@@ -139,7 +159,6 @@ export function growTree(baseY: number, topY: number, seed = 424242): GrownTree 
       r1,
       tubular: thick ? 24 : 10,
       radial: thick ? 16 : r0 > trunkRadius * 0.12 ? 9 : 6,
-      maxRadius: trunkRadius,
       flute,
     });
   };
@@ -156,7 +175,7 @@ export function growTree(baseY: number, topY: number, seed = 424242): GrownTree 
 
     // Foliage hangs off the outer two levels, not just the final tip, so the
     // canopy has depth through the branches instead of floating in clumps.
-    if (depth <= 1) tips.push(end);
+    if (depth <= 1) tips.push({ position: end.clone(), direction: dir.clone() });
     if (depth === 0) return;
 
     // Two or three children, splayed around the parent direction and pulled
@@ -229,122 +248,26 @@ export function growTree(baseY: number, topY: number, seed = 424242): GrownTree 
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.Float32BufferAttribute(mesh.position, 3));
   geometry.setAttribute("normal", new THREE.Float32BufferAttribute(mesh.normal, 3));
-  geometry.setAttribute("aThin", new THREE.Float32BufferAttribute(mesh.thin, 1));
-  geometry.setAttribute("aAxis", new THREE.Float32BufferAttribute(mesh.axis, 1));
-  geometry.setAttribute("aAngle", new THREE.Float32BufferAttribute(mesh.angle, 1));
+  geometry.setAttribute("uv", new THREE.Float32BufferAttribute(mesh.uv, 2));
   geometry.setIndex(mesh.index);
   return { geometry, tips };
 }
 
-/* ----------------------------------------------------------------- shading */
+/* --------------------------------------------------------------- material */
 
-const VERTEX = /* glsl */ `
-  attribute float aThin;
-  attribute float aAxis;
-  attribute float aAngle;
-
-  varying float vThin;
-  varying float vAxis;
-  varying float vAngle;
-  varying vec3 vNormal;
-  varying vec3 vView;
-  varying float vY;
-
-  void main() {
-    vThin = aThin;
-    vAxis = aAxis;
-    vAngle = aAngle;
-    vec4 world = modelMatrix * vec4(position, 1.0);
-    vNormal = normalize(mat3(modelMatrix) * normal);
-    vView = normalize(cameraPosition - world.xyz);
-    vY = world.y;
-    gl_Position = projectionMatrix * viewMatrix * world;
-  }
-`;
-
-/*
- * Painterly bark. The heartwood is lit from inside and the light escapes
- * through the crevices between ridges, brightest in the thick lower trunk;
- * out in the crown the branches darken into silhouettes against the canopy.
- * That gradient - glowing at the root, graphic at the tips - is what the
- * reference does, and what a single flat surface colour cannot.
+/**
+ * Bark, as a physical material rather than a hand-written shader.
+ *
+ * The previous version painted light into the surface with a custom shader:
+ * heartwood glow, crevice bleed, a silhouette ramp up the crown. It matched
+ * the painted reference, and it is gone, because the standing decision is
+ * literal photoreal. What lights the tree now is the HDRI in Scene, through
+ * real albedo, normal and roughness maps. There is nowhere left to cheat.
+ *
+ * The ARM map is wired three times on purpose. three reads occlusion from the
+ * red channel, roughness from green and metalness from blue, so one packed
+ * texture drives all three and costs a single texture unit.
  */
-const FRAGMENT = /* glsl */ `
-  uniform float uBaseY;
-  uniform float uSpan;
-  uniform vec3 uBarkDark;
-  uniform vec3 uBarkLit;
-  uniform vec3 uAmbient;
-  uniform vec3 uCore;
-  uniform vec3 uSilhouette;
-
-  varying float vThin;
-  varying float vAxis;
-  varying float vAngle;
-  varying vec3 vNormal;
-  varying vec3 vView;
-  varying float vY;
-
-  float hash(vec2 p) {
-    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
-  }
-
-  float vnoise(vec2 p) {
-    vec2 i = floor(p);
-    vec2 f = fract(p);
-    f = f * f * (3.0 - 2.0 * f);
-    return mix(
-      mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x),
-      mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x),
-      f.y);
-  }
-
-  float fbm(vec2 p) {
-    return vnoise(p) * 0.55 + vnoise(p * 2.3) * 0.28 + vnoise(p * 4.7) * 0.17;
-  }
-
-  void main() {
-    vec3 n = normalize(vNormal);
-    float height = clamp((vY - uBaseY) / uSpan, 0.0, 1.0);
-
-    // Two scales of bark: fine fibre and broad ridges, both running lengthwise
-    // because the noise is sampled across the ring and along the limb.
-    float fibre = fbm(vec2(vAngle * 16.0, vAxis * 1.3));
-    float ridge = fbm(vec2(vAngle * 5.0, vAxis * 0.3));
-
-    float key = clamp(dot(n, normalize(vec3(-0.4, 0.85, 0.45))), 0.0, 1.0);
-    float fill = clamp(dot(n, normalize(vec3(0.5, -0.6, -0.2))), 0.0, 1.0);
-
-    // An ambient floor before anything else. Without it the shadow side of a
-    // thick bough is the shadow colour outright, which read as a flat black
-    // bowl sitting under the crown rather than as wood in shade.
-    vec3 shadow = mix(uBarkDark, uAmbient, 0.55);
-    vec3 colour = mix(shadow, uBarkLit, key * 0.8 + fibre * 0.28);
-    colour += uBarkLit * fill * 0.16;
-
-    // Heartwood light, strongest in the thick lower trunk and escaping
-    // through the crevices between ridges.
-    float core = smoothstep(0.85, 0.1, vThin) * smoothstep(0.72, 0.0, height);
-    float crevice = smoothstep(0.62, 0.16, ridge);
-    colour += uCore * core * (0.16 + crevice * 0.75);
-
-    // Up in the crown, branches read as dark shapes against the foliage.
-    colour = mix(colour, uSilhouette,
-      smoothstep(0.28, 0.95, vThin) * smoothstep(0.3, 0.92, height) * 0.7);
-
-    float fres = pow(1.0 - abs(dot(n, normalize(vView))), 2.6);
-    colour += uCore * fres * 0.08 * (1.0 - height * 0.55);
-
-    gl_FragColor = vec4(colour, 1.0);
-  }
-`;
-
-const BARK_DARK = new THREE.Color("#0c2f24");
-const BARK_LIT = new THREE.Color("#2a7d50");
-const AMBIENT = new THREE.Color("#1b4a58");
-const CORE = new THREE.Color("#c6ffa4");
-const SILHOUETTE = new THREE.Color("#0b2b26");
-
 export default function ProceduralTree({
   baseY,
   topY,
@@ -352,37 +275,34 @@ export default function ProceduralTree({
   baseY: number;
   topY: number;
 }) {
-  const material = useRef<THREE.ShaderMaterial>(null);
   const { geometry } = useMemo(() => growTree(baseY, topY), [baseY, topY]);
+  const bark = useBark();
 
-  const uniforms = useMemo(
-    () => ({
-      uBaseY: { value: baseY },
-      uSpan: { value: Math.max(14, topY - baseY) },
-      uBarkDark: { value: BARK_DARK },
-      uBarkLit: { value: BARK_LIT },
-      uAmbient: { value: AMBIENT },
-      uCore: { value: CORE },
-      uSilhouette: { value: SILHOUETTE },
-    }),
-    [baseY, topY],
-  );
-
-  useFrame(() => {
-    const m = material.current;
-    if (!m) return;
-    m.uniforms.uBaseY.value = baseY;
-    m.uniforms.uSpan.value = Math.max(14, topY - baseY);
-  });
+  useEffect(() => () => geometry.dispose(), [geometry]);
 
   return (
-    <mesh geometry={geometry} frustumCulled={false}>
-      <shaderMaterial
-        ref={material}
-        uniforms={uniforms}
-        vertexShader={VERTEX}
-        fragmentShader={FRAGMENT}
+    <mesh geometry={geometry} castShadow receiveShadow frustumCulled={false}>
+      <meshPhysicalMaterial
+        map={bark.map}
+        normalMap={bark.normalMap}
+        aoMap={bark.armMap}
+        roughnessMap={bark.armMap}
+        metalnessMap={bark.armMap}
+        // Wood is dielectric. Metalness comes from the map's blue channel,
+        // which the fetcher writes as zero, so this is belt and braces.
+        metalness={0}
+        roughness={1}
+        aoMapIntensity={0.9}
+        // Bark is not glossy, but it is not perfectly matte either - a little
+        // sheen catches the rim light and stops the trunk reading as felt.
+        sheen={0.25}
+        sheenRoughness={0.9}
+        sheenColor="#2f4a28"
+        normalScale={NORMAL_SCALE}
+        envMapIntensity={1.15}
       />
     </mesh>
   );
 }
+
+const NORMAL_SCALE = new THREE.Vector2(1.15, 1.15);

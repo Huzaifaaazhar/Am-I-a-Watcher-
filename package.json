@@ -15,7 +15,9 @@
   },
   "dependencies": {
     "@prometheus-io/client": "^0.16.0",
+    "@react-three/drei": "^9.122.0",
     "@react-three/fiber": "^8.17.10",
+    "@react-three/postprocessing": "^2.19.1",
     "framer-motion": "^13.1.1",
     "lucide-react": "^1.37.0",
     "next": "^14.2.33",

@@ -2,11 +2,20 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Canvas } from "@react-three/fiber";
+import * as THREE from "three";
 
 import TimelineTree from "@/components/TimelineTree";
 import CameraRig from "@/components/CameraRig";
 import Cosmos from "@/components/Cosmos";
-import Bloom from "@/components/Bloom";
+import { Environment } from "@react-three/drei";
+import {
+  EffectComposer,
+  Bloom,
+  SMAA,
+  ToneMapping,
+} from "@react-three/postprocessing";
+import { ToneMappingMode } from "postprocessing";
+import { HDRI_URL } from "@/three/textures";
 import { PerfProbe, PerfReadout, type PerfSample } from "@/components/PerfOverlay";
 import { createSeedTimeline } from "@/lib/seed";
 import { layoutTimeline } from "@/lib/graph";
@@ -38,7 +47,7 @@ interface Shot {
 const SHOTS: Shot[] = [
   { id: "establishing", label: "Establishing", note: "Whole tree at rest", freeze: 2, href: null },
   { id: "hero-orbit", label: "Hero orbit", note: "Mid idle drift", freeze: 9, href: null },
-  { id: "crown", label: "Crown detail", note: "Canopy and blossom", freeze: 4, href: null },
+  { id: "crown", label: "Crown detail", note: "Leaf cards and canopy", freeze: 4, href: null },
   {
     id: "reveal-push-in",
     label: "Reveal push-in",
@@ -129,14 +138,21 @@ export default function ScenesPage() {
             <>
               <Canvas
                 dpr={[1, 1.6]}
-                camera={{ fov: 42, near: 0.1, far: 2000, position: [0, 16, 40] }}
-                gl={{ antialias: true, alpha: false }}
+                camera={{ fov: 36, near: 0.1, far: 2000, position: [0, 16, 40] }}
+                shadows
+                gl={{ toneMapping: THREE.NoToneMapping, antialias: false, alpha: false }}
                 onCreated={({ gl }) => gl.setClearColor("#020a0b")}
               >
-                <ambientLight intensity={0.9} color="#a8e6cf" />
-                <hemisphereLight args={["#7fc8f0", "#08221c", 0.8]} />
+                {/* Same light rig as the real scene, or the numbers lie. */}
+                <Environment files={HDRI_URL} environmentIntensity={0.85} />
+                <directionalLight
+                  position={[-14, 26, 12]}
+                  intensity={1.6}
+                  color="#dff0ff"
+                  castShadow
+                  shadow-mapSize={[1024, 1024]}
+                />
                 <Cosmos />
-                <Bloom />
                 <CameraRig focus={null} idle fit={{ centerY: 18, height: 44, spread: 18 }} />
                 <TimelineTree
                   nodes={timeline.nodes}
@@ -147,6 +163,16 @@ export default function ScenesPage() {
                   onSelect={() => {}}
                 />
                 <PerfProbe onSample={setSample} />
+                <EffectComposer multisampling={0} enableNormalPass={false}>
+                  <SMAA />
+                  <Bloom
+                    intensity={0.7}
+                    luminanceThreshold={0.85}
+                    luminanceSmoothing={0.3}
+                    mipmapBlur
+                  />
+                  <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
+                </EffectComposer>
               </Canvas>
               <PerfReadout sample={sample} viewport={viewport} />
             </>
