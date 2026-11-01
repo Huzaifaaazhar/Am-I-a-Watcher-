@@ -5,17 +5,16 @@ import { useMemo } from "react";
 import type { Branch, TimelineNode } from "@/lib/types";
 
 /**
- * The timeline without WebGL.
+ * The timeline as a plain list.
  *
- * The standard says the app must work *fully* without 3D, which a poster
- * image does not satisfy - the whole point of this app is selecting an event
- * and acting on it, and in the 3D view the only way to do that is to click a
- * label the camera positioned. So this is a real, operable timeline: a list,
- * grouped by branch, keyboard-navigable, driving exactly the same selection
- * state and the same action panel as the scene does.
+ * The canvas is now a painting with an SVG over it, so there is no longer a
+ * class of machine that cannot render it and this is not a fallback. It is
+ * kept because it is still the fastest way to read the whole graph at once,
+ * and because a screen reader on a 40-event tree wants a list, not a map.
+ * Reach it with `?flat=1`.
  *
- * It is also what someone who asked for reduced motion gets. A stilled camera
- * would still be a tree that breathes and sways; a list simply does not move.
+ * It drives exactly the same selection state and the same action panel as
+ * the tree does - a list that cannot act is a report.
  */
 
 interface Props {
@@ -23,8 +22,6 @@ interface Props {
   branches: Branch[];
   selectedId: string | null;
   onSelect: (id: string) => void;
-  /** Why the flat view is being shown, so the notice can be honest. */
-  reason: "no-webgl" | "reduced-motion" | "forced";
 }
 
 export default function FlatTimeline({
@@ -32,7 +29,6 @@ export default function FlatTimeline({
   branches,
   selectedId,
   onSelect,
-  reason,
 }: Props) {
   const grouped = useMemo(() => {
     const alive = branches.filter((b) => b.status === "alive");
@@ -53,12 +49,8 @@ export default function FlatTimeline({
         role="note"
         className="mb-5 max-w-[60ch] border-l-2 border-brass/60 bg-hud-black/50 px-3.5 py-2.5 font-sans text-[12px] leading-relaxed text-ash/80"
       >
-        {reason === "no-webgl" &&
-          "This browser cannot render the Sacred Timeline in three dimensions. Every event is listed below and remains fully operable."}
-        {reason === "reduced-motion" &&
-          "Showing the Sacred Timeline without motion, as your system settings request. Every event remains fully operable."}
-        {reason === "forced" &&
-          "Showing the Sacred Timeline without the scene, as requested by ?flat=1. Every event remains fully operable."}
+        Showing the Sacred Timeline as a plain list, as requested by
+        ?flat=1. Every event remains fully operable.
       </div>
 
       {grouped.map(({ branch, events }) => (

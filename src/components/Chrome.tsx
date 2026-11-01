@@ -5,15 +5,18 @@
  * strip. Everything here sits above the canvas and below the modals.
  */
 
+/**
+ * Monitor glass over the canvas: scanlines, grain and a slow luminance
+ * sweep. The wash and the vignette belong to the canvas itself, which owns
+ * the painting's own light - doubling them here only muddied it.
+ */
 export function Texture() {
   return (
-    <div className="pointer-events-none absolute inset-0 z-30">
-      <div className="absolute inset-0 moss-wash" />
-      <div className="absolute inset-0 crt-scanlines opacity-[0.3]" />
-      <div className="absolute inset-0 crt-grain opacity-[0.055] mix-blend-overlay" />
-      <div className="absolute inset-0 vignette" />
+    <div className="pointer-events-none absolute inset-0 z-20">
+      <div className="absolute inset-0 crt-scanlines opacity-[0.18]" />
+      <div className="absolute inset-0 crt-grain opacity-[0.045] mix-blend-overlay" />
       {/* Slow luminance sweep - sells the "live monitor" read on camera. */}
-      <div className="absolute inset-x-0 top-0 h-1/3 animate-sweep bg-gradient-to-b from-transparent via-moss-300/[0.045] to-transparent" />
+      <div className="absolute inset-x-0 top-0 h-1/3 animate-sweep bg-gradient-to-b from-transparent via-moss-300/[0.04] to-transparent" />
     </div>
   );
 }
@@ -69,16 +72,32 @@ export function StatusStrip({
   );
 }
 
-export function Hint({ visible }: { visible: boolean }) {
-  if (!visible) return null;
+/**
+ * The foot of the canvas: the interaction hint, with the fan-project
+ * disclaimer under it.
+ *
+ * They are one stacked block rather than two things pinned to the same
+ * corner. Pinned separately they collided at every width where the canvas
+ * was narrow - the hint centred, the disclaimer right-aligned, both within
+ * 20px of the bottom - and no amount of nudging one of them fixed it for all
+ * seven viewports.
+ */
+export function CanvasFooter({ hint }: { hint: boolean }) {
   return (
-    <div className="pointer-events-none absolute bottom-[calc(2.25rem+var(--safe-bottom))] left-1/2 z-30 w-full -translate-x-1/2 px-4 text-center font-mono text-[9.5px] uppercase tracking-[0.2em] text-moss-600 md:bottom-[calc(1rem+var(--safe-bottom))]">
-      Select an event to branch, prune or rewrite it
-      {/* Wheel zoom is desktop-only advice, and on a phone this second line
-          collided with the disclaimer pinned to the same corner. */}
-      <div className="mt-1 hidden text-[8px] tracking-[0.16em] text-moss-800 md:block">
-        drag to orbit &middot; scroll to zoom
-      </div>
+    <div className="pointer-events-none absolute inset-x-0 bottom-[calc(0.5rem+var(--safe-bottom))] z-30 flex flex-col items-center gap-2 px-4 text-center">
+      {hint && (
+        <p className="max-w-[34rem] font-mono text-[9.5px] uppercase leading-relaxed tracking-[0.2em] text-moss-600">
+          Select an event on the tree to branch, prune or rewrite it
+          {/* Hover is desktop-only advice. */}
+          <span className="mt-1 hidden text-[8px] tracking-[0.16em] text-moss-800 md:block">
+            hover a limb to light it &middot; click to open its timeline
+          </span>
+        </p>
+      )}
+      <p className="max-w-[46ch] font-mono text-[7.5px] leading-relaxed text-moss-800">
+        Unofficial fan project. Not affiliated with, endorsed by, or sponsored
+        by Marvel or Disney.
+      </p>
     </div>
   );
 }
@@ -120,11 +139,3 @@ export function ResetStamp({ visible }: { visible: boolean }) {
   );
 }
 
-export function Disclaimer() {
-  return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-[calc(0.5rem+var(--safe-bottom))] z-30 px-4 text-center font-mono text-[7.5px] leading-relaxed text-moss-800 md:inset-x-auto md:bottom-[calc(0.75rem+var(--safe-bottom))] md:right-5 md:max-w-[260px] md:text-right">
-      Unofficial fan project. Not affiliated with, endorsed by, or sponsored by
-      Marvel or Disney.
-    </div>
-  );
-}

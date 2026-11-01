@@ -2,15 +2,19 @@
 
 These are the source of truth for look and feel. Code matches the refs, not the other way round.
 
-## Status: images missing
+## The files
 
-**The reference images are not in this folder.** They were supplied as chat uploads and lost
-when the cloud container was recycled. Re-add them here as `hud-*.png` / `tree-*.png` and they
-become the source of truth again.
+- `111352-main-timeline.png` — the main screen: nav, tree canvas, event panel.
+- `111353-branching.png` — the branching screen: timeline editor, deviation chart, register.
 
-What follows is what was extracted from them before they were lost, and it is what the code
-currently implements. Treat it as a faithful record, not as a substitute — anything it does not
-mention has to be re-checked against the originals.
+These two are the visual authority. They were re-supplied in Phase 6 after the originals were
+lost to a container recycle, and they are committed here so that cannot happen again.
+
+The source painting behind the canvas is `art-src/world-tree.jpg`; `public/art/` is derived
+from it by `scripts/process_art.py` and is not edited by hand.
+
+The notes below were transcribed from the references and still describe what the code
+implements. Where a note and an image disagree, the image wins.
 
 ## Ref 1 — HUD layout
 

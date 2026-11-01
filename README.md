@@ -1,10 +1,10 @@
 # AM I A WATCHER? — Temporal Causality Engine
 
 A universe of branching timelines you can **branch**, **prune**, and
-**rewrite**. A spine of raw time runs through the void; every what-if sends a
-green tendril writhing out of it into open space, and every world strung along
-that tendril is a history of its own. Prune one and it dissolves into gold ash
-while the engine writes its epitaph to the ledger.
+**rewrite**. The Sacred Timeline is a painted world tree with a live,
+interactive overlay drawn onto it: every recorded event sits on the trunk, and
+every what-if sends a lit limb out of the fork where history changed. Prune one
+and it dissolves on screen while the engine writes its epitaph to the ledger.
 
 You are a temporal custodian who is never quite in control.
 
@@ -37,7 +37,6 @@ engine is the default and has no dependencies. Copy `.env.example` to
 |---|---|
 | `/` | The universe |
 | `/monitor` | Operational dashboard |
-| `/dev/scenes` | Every named camera shot, with live FPS / draw-call / triangle counters |
 | `/dev/gallery` | Every component in every state |
 | `/api/health` | Liveness + provider readiness (JSON) |
 | `/api/metrics` | Prometheus scrape endpoint |
@@ -48,7 +47,7 @@ engine is the default and has no dependencies. Copy `.env.example` to
 
 ```bash
 npm run test     # typecheck -> lint -> evals. Run before every commit
-npm run shots    # screenshots every route at 390x844 and 1440x900 into /shots
+npm run shots    # screenshots every route and state at 7 viewports into /shots
 ```
 
 `npm run shots` starts its own dev server, pins the animation clock so repeat
@@ -61,7 +60,7 @@ Append `?freeze=<seconds>` to any route to pin the animation clock and jump
 growth animations to their finished state; `?debug=1` shows the perf readout
 without freezing.
 
-Build rules, design tokens, the 3D realism checklist and the performance
+Build rules, design tokens, the canvas checklist and the performance
 budgets live in [`CLAUDE.md`](./CLAUDE.md). Non-obvious choices are recorded in
 [`docs/DECISIONS.md`](./docs/DECISIONS.md).
 
@@ -71,13 +70,13 @@ budgets live in [`CLAUDE.md`](./CLAUDE.md). Non-obvious choices are recorded in
 
 | Verb | What happens |
 |---|---|
-| **BRANCH** | Enter a "what if". The engine generates 3–5 consequence events, and a tendril grows out of the anchor world into open space, threading each new world as it goes. |
-| **PRUNE** | The branch converts to a GLSL point system and disperses along noise-driven vectors as glowing gold embers, while the engine writes a deadpan epitaph to the ledger. |
+| **BRANCH** | Enter a "what if". The engine generates 3–5 consequence events, and a new limb draws itself out of the fork where history changed, threading each new event along it. |
+| **PRUNE** | Asks first, naming the timeline and counting what dies. On confirmation the limb burns red and dissolves off the painting, and the engine writes a deadpan epitaph to the ledger. |
 | **REWRITE** | Edit an event. Everything downstream desaturates and fades while the regenerated cascade grows in sequentially. |
 
-Controls: drag to orbit, scroll to zoom, click a world for the radial menu.
-Every action raises the **instability meter**; at 100 the whole universe
-implodes toward the origin and reseeds behind a stamped `SEQUENCE RESET`.
+Controls: hover a limb or a stretch of trunk to light it, click or tap to open
+its timeline. Every action raises the **instability meter**; at 100 the
+sequence reseeds behind a stamped `SEQUENCE RESET`.
 
 ### How it is drawn
 
@@ -301,24 +300,32 @@ src/
       logger.ts      pino, request ids, premise redaction
       metrics.ts     Prometheus registry
       parsePrometheus.ts  scrape parser shared with the dashboard
-    graph.ts  layout + verbs      schemas.ts  contract + normalise/validate
-    vfx.ts    prune point cloud   rateLimit.ts  window + daily cap
+    graph.ts      the three verbs    schemas.ts  contract + normalise/validate
+    treeMap.ts    where the graph sits on the painting (art space)
+    useStage.ts   the one fit shared by image, overlay and labels
+    rateLimit.ts  window + daily cap
   components/
-    Scene / TimelineTree / PruneBurst / CameraRig / Ledger / …
+    WorldTree.tsx       the canvas: painting + interactive SVG
+    EventPanel / TimelineViewerPanel / CurrentDeviationsPanel / PruneConfirm
+    ui/Panel.tsx  ui/Button.tsx   the only two surfaces
     monitor/Charts.tsx  validated-palette chart primitives
 evals/  golden cases, runner, regression baseline
 ```
 
-**Stack:** Next.js 14 (App Router) · TypeScript · React Three Fiber · Tailwind ·
-zod · pino · `@prometheus-io/client`. No LLM SDK.
+**Stack:** Next.js 14 (App Router) · TypeScript · Tailwind · framer-motion ·
+zod · pino · `@prometheus-io/client`. No LLM SDK, and no 3D: the canvas is an
+image with an SVG on it.
 
 Three rendering notes:
 
-- **Layout enforces a minimum vertical gap** between events, so labels never
-  collide — it is built to be readable on camera, not to be a strict time axis.
-- **Labels are DOM, not 3D text.** A projector writes `style.transform` onto
-  each label every frame, bypassing React, so many labels stay at 60fps.
-- **The camera fits itself to the tree's bounds** on mount and after each reset.
+- **One box fits the image, the overlay and the labels.** `useStage` returns it
+  and all three are positioned from it, so the overlay cannot drift out of
+  register with the artwork it is drawn onto.
+- **Art space is the only coordinate system** the geometry knows: a 1000×563
+  viewBox matching the painting. Nothing in `treeMap.ts` knows about pixels.
+- **Every limb has a wide invisible hit stroke** behind its hairline, and the
+  trunk is split into one hit segment per event — so a 2px branch is still a
+  40px touch target, and no two events share a control.
 
 ---
 

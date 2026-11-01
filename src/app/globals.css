@@ -166,3 +166,156 @@ body {
     animation: none !important;
   }
 }
+
+/* -------------------------------------------------------- the world tree */
+
+/*
+ * Everything the painting's overlay animates runs here rather than in
+ * JavaScript. A dash offset, an opacity and a transform are all compositor
+ * work; the equivalent requestAnimationFrame loop would re-render the whole
+ * SVG every frame for the same picture.
+ */
+
+/* Sap climbing the trunk. The dash pattern is one short lit run in a long
+   gap, so what travels reads as a pulse of light inside the bark rather than
+   as a moving line. */
+@keyframes sap-rise {
+  from {
+    stroke-dashoffset: 520;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.sap {
+  stroke-dasharray: 26 494;
+  animation: sap-rise 7s linear infinite;
+}
+.sap-2 {
+  animation-delay: -3.4s;
+}
+.sap-3 {
+  animation-delay: -5.6s;
+}
+
+/* A limb breathing while it is merely alive - too slow to catch the eye,
+   enough that the tree is never a still image. */
+@keyframes limb-breathe {
+  0%,
+  100% {
+    opacity: 0.42;
+  }
+  50% {
+    opacity: 0.66;
+  }
+}
+
+.limb-live {
+  animation: limb-breathe 9s ease-in-out infinite;
+}
+
+/* Pollen. Each speck gets its own duration and delay inline, so the field
+   never pulses in unison. */
+@keyframes mote-drift {
+  0% {
+    transform: translate3d(0, 0, 0);
+    opacity: 0;
+  }
+  12% {
+    opacity: var(--mote-peak, 0.5);
+  }
+  80% {
+    opacity: var(--mote-peak, 0.5);
+  }
+  100% {
+    transform: translate3d(var(--mote-dx, 10px), var(--mote-dy, -90px), 0);
+    opacity: 0;
+  }
+}
+
+.mote {
+  animation: mote-drift var(--mote-dur, 14s) linear infinite;
+  animation-delay: var(--mote-delay, 0s);
+  will-change: transform, opacity;
+}
+
+/* The selected event's marker. A ring that expands and fades, not a flash. */
+@keyframes marker-ping {
+  0% {
+    r: 7;
+    opacity: 0.85;
+  }
+  100% {
+    r: 24;
+    opacity: 0;
+  }
+}
+
+.marker-ping {
+  animation: marker-ping 2.4s ease-out infinite;
+}
+
+/* A new limb drawing itself outward from the fork it grew at. */
+@keyframes limb-draw {
+  from {
+    stroke-dashoffset: var(--limb-len, 400);
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.limb-draw {
+  stroke-dasharray: var(--limb-len, 400);
+  animation: limb-draw 1.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sap,
+  .limb-live,
+  .mote,
+  .marker-ping,
+  .limb-draw {
+    animation: none !important;
+  }
+  .sap {
+    stroke-dasharray: none;
+    opacity: 0.5;
+  }
+  .limb-draw {
+    stroke-dasharray: none;
+  }
+  .mote {
+    opacity: var(--mote-peak, 0.5);
+  }
+}
+
+/* A pruned limb going out: red, then gone. It is held on screen for one
+   beat after the decision so the destruction is something you watch rather
+   than something that already happened. */
+@keyframes prune-dissolve {
+  0% {
+    opacity: 1;
+    filter: saturate(1);
+  }
+  30% {
+    opacity: 1;
+    filter: saturate(2.2) brightness(1.3);
+  }
+  100% {
+    opacity: 0;
+    filter: saturate(0.4);
+  }
+}
+
+.prune-dissolve {
+  animation: prune-dissolve 760ms ease-in forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .prune-dissolve {
+    animation: none !important;
+    opacity: 0.25;
+  }
+}

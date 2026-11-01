@@ -1,41 +1,68 @@
 "use client";
 
-import type { Branch } from "@/lib/types";
+import Panel from "@/components/ui/Panel";
+import type { Branch, TimelineNode } from "@/lib/types";
 
-/** Right-most panel of the deviation triptych: every branch off the sacred line. */
+/**
+ * Every branch currently off the Sacred Timeline, with the event it split
+ * from and a way into it. The row is the control - a list that names
+ * deviations but cannot open them is a report, not an interface.
+ */
+
+export interface DeviationRow {
+  branch: Branch;
+  anchor: TimelineNode | undefined;
+  events: number;
+}
+
 export default function CurrentDeviationsPanel({
-  branches,
-  onSelect,
+  rows,
+  selectedBranchId,
+  onInspect,
 }: {
-  branches: Branch[];
-  onSelect: (branchId: string) => void;
+  rows: DeviationRow[];
+  selectedBranchId: string | null;
+  onInspect: (branchId: string) => void;
 }) {
   return (
-    <div className="w-full border-2 border-brass bg-hud-green/95 px-5 py-5 backdrop-blur-sm md:w-[280px]">
-      <h3 className="mb-4 font-sans text-[19px] font-extrabold uppercase tracking-[0.04em] text-brass">
-        Current Deviations
-      </h3>
-
-      {branches.length === 0 ? (
-        <p className="font-sans text-[12px] text-ash/50">No active deviations.</p>
+    <Panel title="Current Deviations" className="w-full">
+      {rows.length === 0 ? (
+        <p className="py-2 font-sans text-[12px] text-ash/50">
+          No active deviations. The Sacred Timeline is whole.
+        </p>
       ) : (
-        <ul className="space-y-3">
-          {branches.map((b) => (
-            <li key={b.id}>
-              <button
-                type="button"
-                onClick={() => onSelect(b.id)}
-                className="flex w-full items-center gap-2.5 text-left transition-opacity hover:opacity-80"
-              >
-                <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-pill-red" />
-                <span className="font-sans text-[13px] font-bold uppercase tracking-[0.03em] text-white">
-                  {b.label}
-                </span>
-              </button>
-            </li>
-          ))}
+        <ul className="space-y-2">
+          {rows.map(({ branch, anchor, events }) => {
+            const active = branch.id === selectedBranchId;
+            return (
+              <li key={branch.id}>
+                <button
+                  type="button"
+                  onClick={() => onInspect(branch.id)}
+                  className={`w-full border px-3 py-2 text-left transition-colors ${
+                    active
+                      ? "border-brass bg-hud-black/70"
+                      : "border-brass/30 bg-hud-black/40 hover:border-brass/70"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="h-2 w-2 shrink-0 rounded-full bg-pill-red" />
+                    <span className="truncate font-sans text-[12px] font-bold uppercase tracking-[0.03em] text-white">
+                      {branch.label}
+                    </span>
+                  </div>
+                  <div className="mt-1 flex items-center justify-between gap-2 font-sans text-[10px] uppercase tracking-[0.12em] text-ash/55">
+                    <span className="truncate">
+                      {anchor ? `From ${anchor.year} ${anchor.title}` : "Origin lost"}
+                    </span>
+                    <span className="shrink-0 tabular-nums text-brass/80">{events} ev</span>
+                  </div>
+                </button>
+              </li>
+            );
+          })}
         </ul>
       )}
-    </div>
+    </Panel>
   );
 }

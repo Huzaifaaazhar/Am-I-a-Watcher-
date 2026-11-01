@@ -75,17 +75,16 @@ const VIEWPORTS = [
 
 /** `freeze` pins the clock; `wait` is extra settle time for first paint. */
 const TARGETS = [
-  { id: "tree", url: "/?freeze=2", wait: 2600 },
-  // Build machines report few cores, so the device probe picks "low" on all
-  // of them. Without pinning, the high tier is never actually photographed.
-  { id: "tree-high", url: "/?freeze=2&gfx=high", wait: 3000, wideOnly: true },
-  { id: "tree-orbit", url: "/?freeze=9", wait: 2600 },
-  { id: "panel", url: "/?freeze=3", wait: 2600, action: "select" },
-  { id: "nav", url: "/?freeze=2", wait: 2000, action: "nav", phoneOnly: true },
-  // The non-WebGL path, forced so it is photographed on every run rather than
-  // only on a machine that genuinely cannot do WebGL.
-  { id: "flat", url: "/?flat=1&freeze=2", wait: 1600 },
-  { id: "dev-scenes", url: "/dev/scenes?freeze=2", wait: 2600 },
+  { id: "tree", url: "/?freeze=2", wait: 1800 },
+  { id: "panel", url: "/?freeze=2", wait: 1800, action: "select" },
+  { id: "branches", url: "/?freeze=2", wait: 1600, action: "branches" },
+  { id: "prune", url: "/?freeze=2", wait: 1800, action: "prune" },
+  // The branching moment: the editor, the deviation chart and the register,
+  // which is the second reference screen and only exists after an action.
+  { id: "deviation", url: "/?freeze=2", wait: 2200, action: "deviate" },
+  { id: "nav", url: "/?freeze=2", wait: 1400, action: "nav", phoneOnly: true },
+  // The plain list, forced so it is photographed on every run.
+  { id: "flat", url: "/?flat=1&freeze=2", wait: 1200 },
   { id: "dev-gallery", url: "/dev/gallery", wait: 1200 },
   { id: "monitor", url: "/monitor", wait: 1200 },
 ];
@@ -197,23 +196,69 @@ async function warm(browser, port, urls) {
 }
 
 /** Interactions that put the page into a state worth photographing. */
-async function perform(page, action) {
-  if (action === "select") {
-    const chips = page.locator("div.absolute.left-0.top-0 > button");
-    const count = await chips.count();
-    for (let i = 0; i < count; i++) {
-      const chip = chips.nth(i);
-      const wrapper = chip.locator("xpath=..");
-      const visible = await wrapper.evaluate((el) => parseFloat(el.style.opacity || "0"));
-      if (visible < 0.5) continue;
-      await chip.click({ force: true });
-      await page.waitForTimeout(900);
-      return;
-    }
-  }
-  if (action === "nav") {
+async function perform(page, action, viewport) {
+  // Below lg the navigation is a drawer, so every nav-driven state has to
+  // open it first. Keyed off the breakpoint, not off isMobile: the drawer is
+  // a width decision and a 768 tablet reports as mobile but is not phone-wide.
+  const drawer = viewport.width < 1024;
+  const openNav = async () => {
     await page.getByRole("button", { name: /open navigation/i }).click();
+    await page.waitForTimeout(400);
+  };
+
+  const selectEvent = async () => {
+    // A trunk segment, not a label: the labels thin out on narrow screens and
+    // the hit paths are what the interaction actually is.
+    const hit = page.locator('path[role="button"]');
+    if ((await hit.count()) === 0) return false;
+    await hit.nth(Math.min(4, (await hit.count()) - 1)).click({ force: true });
+    await page.waitForTimeout(700);
+    return true;
+  };
+
+  if (action === "select") {
+    await selectEvent();
+  }
+
+  if (action === "nav") {
+    await openNav();
+  }
+
+  if (action === "branches") {
+    if (drawer) await openNav();
+    await page.getByRole("button", { name: /^branches$/i }).locator("visible=true").first().click();
     await page.waitForTimeout(600);
+  }
+
+  if (action === "deviate") {
+    if (!(await selectEvent())) return;
+    // `visible=true`: at lg the rail is docked and the sheet is gone, but a
+    // hidden duplicate used to sit earlier in the document and `.first()`
+    // picked it, so the fill waited on a control nobody could type into.
+    const premise = page
+      .getByLabel(/description of the change/i)
+      .locator("visible=true")
+      .first();
+    if (!(await premise.count())) return;
+    await premise.fill("Napoleon focuses on naval supremacy");
+    await page
+      .getByRole("button", { name: /branch new timeline/i })
+      .locator("visible=true")
+      .first()
+      .click();
+    await page.waitForTimeout(1600);
+  }
+
+  if (action === "prune") {
+    if (!(await selectEvent())) return;
+    const prune = page
+      .getByRole("button", { name: /prune timeline/i })
+      .locator("visible=true")
+      .first();
+    if (await prune.count()) {
+      await prune.click({ force: true });
+      await page.waitForTimeout(700);
+    }
   }
 }
 
@@ -269,7 +314,7 @@ async function main() {
             timeout: 45_000,
           });
           await page.waitForTimeout(target.wait);
-          if (target.action) await perform(page, target.action);
+          if (target.action) await perform(page, target.action, viewport);
 
           // Horizontal overflow at phone width is the defect that shipped
           // once already, so it is asserted on every run rather than eyeballed.

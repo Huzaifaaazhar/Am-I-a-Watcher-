@@ -4,12 +4,15 @@ import { useState } from "react";
 
 import EventPanel from "@/components/EventPanel";
 import CurrentDeviationsPanel from "@/components/CurrentDeviationsPanel";
+import PruneConfirm from "@/components/PruneConfirm";
+import RailIdle from "@/components/RailIdle";
+import Panel from "@/components/ui/Panel";
 import TimelineViewerPanel from "@/components/TimelineViewerPanel";
 import InstabilityGauge from "@/components/InstabilityGauge";
 import HornBadge from "@/components/HornBadge";
 import TopBar from "@/components/TopBar";
 import Sidebar from "@/components/Sidebar";
-import { Working, ResetStamp, Hint } from "@/components/Chrome";
+import { Working, ResetStamp, CanvasFooter } from "@/components/Chrome";
 import Button, { type ButtonVariant } from "@/components/ui/Button";
 import * as Icons from "@/components/icons";
 import type { Branch, TimelineNode } from "@/lib/types";
@@ -21,9 +24,8 @@ import type { Branch, TimelineNode } from "@/lib/types";
  * three-step interaction can still be looked at. Excluded from production by
  * the guard in src/app/dev/layout.tsx.
  *
- * Phase 4 fills in the states that do not exist yet - loading and error on the
- * panels, and the full button and input matrix once those become real
- * components rather than inline Tailwind.
+ * Every panel is shown at the width it is docked at in the rail, so a state
+ * that only survives at 340px is caught here rather than on a phone.
  */
 
 const NODE: TimelineNode = {
@@ -38,6 +40,20 @@ const NODE: TimelineNode = {
   origin: "seed",
   bornAt: 0,
 };
+
+const PRIME: Branch = {
+  id: "prime",
+  label: "PRIME",
+  status: "alive",
+  originNodeId: null,
+  depth: 0,
+  index: 0,
+};
+
+const CONSEQUENCE: TimelineNode[] = [
+  { ...NODE, id: "c1", branchId: "b1", year: 1881, title: "Naval charters rewritten" },
+  { ...NODE, id: "c2", branchId: "b1", year: 1894, title: "The blockade collapses" },
+];
 
 const DEVIATIONS: Branch[] = [
   {
@@ -195,12 +211,13 @@ export default function GalleryPage() {
       </Section>
 
       <Section title="Event panel">
-        <div className="flex flex-wrap gap-5">
-          <div>
+        <div className="flex flex-wrap items-start gap-5">
+          <div className="w-[330px]">
             <p className="mb-1.5 font-mono text-[9px] text-ash/40">default</p>
             <EventPanel
               node={NODE}
-              originLabel="The Sacred Timeline"
+              branch={PRIME}
+              siblingCount={9}
               busy={null}
               onClose={() => {}}
               onSave={() => {}}
@@ -208,13 +225,14 @@ export default function GalleryPage() {
               onPrune={() => {}}
             />
           </div>
-          <div>
+          <div className="w-[330px]">
             <p className="mb-1.5 font-mono text-[9px] text-ash/40">
               busy — branch in flight, spinner on the action that caused it
             </p>
             <EventPanel
               node={NODE}
-              originLabel="The Sacred Timeline"
+              branch={PRIME}
+              siblingCount={9}
               busy="Computing causal cascade"
               onClose={() => {}}
               onSave={() => {}}
@@ -222,13 +240,13 @@ export default function GalleryPage() {
               onPrune={() => {}}
             />
           </div>
-          <div>
+          <div className="w-[330px]">
             <p className="mb-1.5 font-mono text-[9px] text-ash/40">deviation warning</p>
             <EventPanel
               node={NODE}
-              originLabel="The Sacred Timeline"
+              branch={PRIME}
+              siblingCount={9}
               busy={null}
-              eyebrow="Timeline editor"
               warning
               onClose={() => {}}
               onSave={() => {}}
@@ -239,15 +257,58 @@ export default function GalleryPage() {
         </div>
       </Section>
 
-      <Section title="Deviation triptych">
-        <div className="flex flex-wrap gap-5">
-          <TimelineViewerPanel
-            premise="Napoleon focuses on naval supremacy"
-            branchLabel="Napoleon focuses on naval supremacy"
-          />
-          <CurrentDeviationsPanel
-            branches={DEVIATIONS}
-            onSelect={() => {}}
+      <Section title="Panel chrome">
+        <div className="flex flex-wrap items-start gap-5">
+          {(["brass", "warn", "red"] as const).map((tone) => (
+            <Panel
+              key={tone}
+              tone={tone}
+              title={`${tone} tone`}
+              eyebrow="Panel"
+              className="w-[260px]"
+            >
+              <p className="font-sans text-[12px] text-ash/80">
+                Hairline frame, corner brackets, rule under the heading.
+              </p>
+            </Panel>
+          ))}
+        </div>
+      </Section>
+
+      <Section title="Rail states">
+        <div className="flex flex-wrap items-start gap-5">
+          <div className="w-[330px]">
+            <RailIdle branches={2} events={11} />
+          </div>
+          <div className="w-[330px]">
+            <TimelineViewerPanel
+              anchor={NODE}
+              parentLabel="The Sacred Timeline"
+              branchLabel="Napoleon focuses on naval supremacy"
+              premise="Napoleon focuses on naval supremacy"
+              events={CONSEQUENCE}
+              successors={CONSEQUENCE}
+            />
+          </div>
+          <div className="w-[330px]">
+            <CurrentDeviationsPanel
+              rows={DEVIATIONS.map((branch) => ({ branch, anchor: NODE, events: 3 }))}
+              selectedBranchId="b1"
+              onInspect={() => {}}
+            />
+          </div>
+        </div>
+      </Section>
+
+      <Section title="Prune confirmation">
+        <div className="relative h-[420px] overflow-hidden rounded-sm border border-brass/25 bg-hud-greenDark">
+          <PruneConfirm
+            timelineLabel="Napoleon focuses on naval supremacy"
+            anchorTitle="Telephone patented"
+            eventCount={4}
+            branchCount={1}
+            onCancel={() => {}}
+            onConfirm={() => {}}
           />
         </div>
       </Section>
@@ -260,7 +321,7 @@ export default function GalleryPage() {
           <ResetStamp visible />
         </div>
         <div className="relative mt-4 h-24 overflow-hidden rounded-sm border border-brass/25 bg-hud-greenDark">
-          <Hint visible />
+          <CanvasFooter hint />
         </div>
       </Section>
 
@@ -276,9 +337,8 @@ export default function GalleryPage() {
           <TopBar onToggleNav={() => setNavOpen(true)} />
           <div className="relative flex h-[calc(100%-62px)]">
             <Sidebar
-              activePanel={null}
-              onSelectPanel={() => {}}
-              onResetView={() => {}}
+              view="sacred"
+              onSelect={() => {}}
               open={navOpen}
               onClose={() => setNavOpen(false)}
             />

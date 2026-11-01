@@ -235,3 +235,51 @@ budget, over the 120k mobile one, so leaf count has to scale with the texture ti
 - **Motes are tuned deliberately under the bloom threshold.** Brighter and every speck picks up
   a halo, turning fine dust into a field of bokeh balls that competes with the tree.
 
+
+## Phase 6 - the painted canvas
+
+The 3D tree is gone. Three rebuilds of it (procedural, painterly, photoreal) did not reach the
+bar, and the owner supplied the artwork the project had been chasing all along. What follows is
+the consequence of making the painting the subject rather than a reference.
+
+- **The painting is the canvas; the interface is a transparent SVG over it.** Drawing a second
+  tree on top of a picture of a tree is what produced two misaligned trees in every earlier
+  attempt. The overlay adds structure you can point at, not a second drawing: hairlines, mostly
+  transparent, inside the artwork's own light.
+- **One box drives the image, the overlay and the labels** (`src/lib/useStage.ts`). Alignment is
+  not maintained, it is structural - there is one number and all three are given it. The
+  alternative, `object-fit: cover` on the image and a guess in the SVG, cannot stay in register
+  across seven viewports.
+- **Cover-fit, clamped by a safe rectangle.** Cover alone throws the outermost limbs off a
+  portrait canvas, and those limbs *are* the interface. When the clamp bites the art letterboxes
+  instead; the painting's own border is near-black, so against the canvas the seam is invisible.
+- **Limbs are generated from a tuned table, not hand-written path data.** The graph is live: a
+  branch created at runtime needs a limb too, and hand-authored `d` strings only cover the
+  events that happened to be there when they were typed. The trunk *is* traced - it is the one
+  piece of the painting that never moves.
+- **Each limb carries a hit stroke roughly 20x the visible one**, and the trunk is split into one
+  hit segment per event. A 2px branch is not a touch target, and one rectangle over the whole
+  tree is not an interaction.
+- **Prime events sit on the trunk and branch events along their limb.** It is the mapping the
+  data already implies, and it means the deviation a branch creates is visible as geometry: the
+  limb leaves the trunk at the event that was changed.
+- **Everything the overlay animates is CSS**, not a frame loop: dash offsets, opacity and
+  transforms are compositor work, where the equivalent rAF would re-render the whole SVG every
+  frame for the same picture.
+- **Pruning asks first.** It used to fire on the button press. It now names the timeline, counts
+  what dies, and holds the limb on screen for one red dissolve before committing - destruction
+  you watch rather than destruction that already happened. Focus lands on Cancel.
+- **The animated GIF was rejected.** 540x450 and 10 MB: a third of the pixels the canvas needs
+  and more weight than the rest of the app, and stretching it would break the aspect-ratio
+  contract the overlay depends on. The still is the primary source, upscaled 2x with a light
+  unsharp pass - a watercolour tolerates that where a photograph would not.
+- **The whole 3D stack was deleted, not disabled.** three, drei, postprocessing, GSAP, the
+  texture pipeline and the HDRI: ~10 MB of assets and 500 KB of JavaScript that nothing renders.
+  Dead code that ships is the placeholder rule in another costume. It is recoverable from
+  `27dde48` if the decision ever reverses.
+- **`capabilities.ts` is down to one question.** There is no GPU gate and no quality tier to
+  pick any more; reduced motion is honoured in CSS instead of by swapping the interface for a
+  different one.
+- **`FlatTimeline` stopped being a fallback and stayed anyway.** No machine fails to render a
+  picture, but a list is still the fastest way to read a 40-event graph and the right shape for
+  a screen reader. It is at `?flat=1`.

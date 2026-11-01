@@ -7,9 +7,11 @@ const COLORS = ["#D4AF37", "#FF9900", "#2FBE6C"];
 
 /**
  * TVA malfunction overlay: falling glyphs across the top of the canvas,
- * shown only while a deviation is being processed. Plain canvas 2D - cheap
- * enough to redraw every frame and never competes with the WebGL scene for
- * the GPU context.
+ * shown only while a deviation is being processed.
+ *
+ * Confined to a strip and faded out at its foot. Run full height it is a
+ * curtain: the painting disappears behind it at the exact moment the branch
+ * it is announcing grows, which is the one thing the custodian should see.
  */
 export default function MatrixRain({ active }: { active: boolean }) {
   const ref = useRef<HTMLCanvasElement>(null);
@@ -41,7 +43,7 @@ export default function MatrixRain({ active }: { active: boolean }) {
         const glyph = GLYPHS[Math.floor(Math.random() * GLYPHS.length)];
         ctx.fillStyle = COLORS[Math.floor(Math.random() * COLORS.length)];
         ctx.fillText(glyph, i * fontSize, drops[i] * fontSize);
-        if (drops[i] * fontSize > canvas.height * 0.55 && Math.random() > 0.975) {
+        if (drops[i] * fontSize > canvas.height * 0.7 && Math.random() > 0.96) {
           drops[i] = 0;
         }
         drops[i]++;
@@ -69,7 +71,7 @@ export default function MatrixRain({ active }: { active: boolean }) {
         maskImage: "linear-gradient(to bottom, black 55%, transparent 100%)",
         WebkitMaskImage: "linear-gradient(to bottom, black 55%, transparent 100%)",
       }}
-      className="pointer-events-none absolute inset-x-0 top-0 z-20 h-[46%] w-full opacity-70"
+      className="pointer-events-none absolute inset-x-0 top-0 z-20 h-[32%] max-h-[220px] w-full opacity-50"
     />
   );
 }
