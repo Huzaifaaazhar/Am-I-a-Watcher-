@@ -3,21 +3,75 @@
 @tailwind utilities;
 
 /*
- * Freely-licensed faces only (Bitter and JetBrains Mono are both OFL).
- * No official or copyrighted title font is reproduced anywhere in this project -
- * see the FAN ASSET SLOT in Chrome.tsx for where the builder drops one in.
+ * Design tokens.
+ *
+ * tailwind.config.ts resolves its colours to these, so each has exactly one
+ * definition and the utility classes, the raw canvas CSS and anything reading
+ * computed styles cannot drift apart.
+ *
+ * Colours are space-separated RGB channels, not hex, because Tailwind's
+ * opacity modifiers compose them as `rgb(var(--x) / <alpha-value>)`. Holding
+ * a hex string here silently breaks every `/40`-style utility in the app -
+ * which it did: 87 of them, and the clearest symptom was an input rendering
+ * solid white because its `bg-hud-black/40` produced nothing at all.
+ *
+ * --font-display and --font-mono are deliberately absent: next/font generates
+ * them in layout.tsx, and redeclaring them here would override the generated
+ * families with names the browser cannot resolve.
+ *
+ * Both faces are OFL. No official or copyrighted title font is reproduced
+ * anywhere in this project - see the FAN ASSET SLOT in Chrome.tsx.
  */
 :root {
-  --font-display: "Bitter", "Roboto Slab", Georgia, "Times New Roman", serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* Chrome */
+  --hud-green: 11 74 52;
+  --hud-green-dark: 6 51 31;
+  --hud-panel: 14 81 56;
+  --hud-black: 5 8 7;
+
+  /* Accents */
+  --brass: 232 195 74;
+  --brass-dim: 201 166 59;
+  --weave: 16 185 129;
+  --warn: 240 160 32;
+  --pill-blue: 46 123 166;
+  --pill-red: 176 58 46;
+
+  /* Ground and text */
+  --ash: 237 234 224;
+  --void: 7 9 10;
+
+  /*
+   * Safe-area insets, defaulted to zero so the rest of the sheet can use them
+   * unconditionally. iOS fills them in on a notched device; every other
+   * browser keeps the fallback.
+   */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
 }
 
 html,
 body {
   height: 100%;
-  background: #07090a;
+  background: rgb(var(--void));
   color: #c9c3b0;
   overscroll-behavior: none;
+}
+
+/*
+ * One visible focus treatment for the whole interface.
+ *
+ * :focus-visible rather than :focus, so a mouse click does not leave a ring
+ * behind but a Tab key always does. Gold against every surface in the
+ * palette, and offset so it reads on the dark panels as well as the light
+ * pills.
+ */
+:where(a, button, input, textarea, select, [tabindex]):focus-visible {
+  outline: 2px solid rgb(var(--brass));
+  outline-offset: 2px;
+  border-radius: 1px;
 }
 
 body {

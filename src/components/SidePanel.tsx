@@ -2,11 +2,12 @@
 
 import type { ReactNode } from "react";
 import { motion } from "framer-motion";
-import type { LucideIcon } from "lucide-react";
+import type { IconProps } from "@/components/icons";
 
 interface Props {
   title: string;
-  icon: LucideIcon;
+  /** Any icon from @/components/icons. */
+  icon: (props: IconProps) => React.ReactElement;
   onClose: () => void;
   children: ReactNode;
 }

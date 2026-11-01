@@ -24,8 +24,10 @@ const NAV = [
  * a gold diagonal notched into the top-right corner and a gold chevron on the
  * active row that bites into the canvas.
  *
- * Below `md` it becomes an off-canvas drawer with a scrim - at phone widths a
- * fixed 300px column would eat two thirds of the screen.
+ * Below `lg` it becomes an off-canvas drawer with a scrim. It used to dock at
+ * `md`, but at 768 a docked rail plus the event panel left the canvas a
+ * 168px strip - the tree, which is the entire point of the screen, became a
+ * sliver. A tablet in portrait gets the drawer.
  */
 export default function Sidebar({
   activePanel,
@@ -41,12 +43,12 @@ export default function Sidebar({
           type="button"
           aria-label="Close navigation"
           onClick={onClose}
-          className="fixed inset-0 z-40 bg-black/60 md:hidden"
+          className="fixed inset-0 z-40 bg-black/60 lg:hidden"
         />
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-[248px] flex-col bg-hud-green transition-transform duration-200 md:relative md:z-30 md:w-[260px] md:translate-x-0 lg:w-[300px] ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-[248px] flex-col bg-hud-green pl-safe-l pt-safe-t transition-transform duration-200 lg:relative lg:z-30 lg:w-[300px] lg:translate-x-0 lg:pt-0 ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -82,7 +84,7 @@ export default function Sidebar({
                 </button>
                 {active && (
                   <svg
-                    className="pointer-events-none absolute -right-[40px] top-0 hidden h-full w-[46px] md:block"
+                    className="pointer-events-none absolute -right-[40px] top-0 hidden h-full w-[46px] lg:block"
                     viewBox="0 0 46 100"
                     preserveAspectRatio="none"
                   >
@@ -94,7 +96,7 @@ export default function Sidebar({
           })}
         </nav>
 
-        <div className="relative mt-auto flex justify-center pb-8 pt-6 md:pb-10">
+        <div className="relative mt-auto flex justify-center pb-[calc(2rem+var(--safe-bottom))] pt-6 md:pb-[calc(2.5rem+var(--safe-bottom))]">
           <div className="rounded-full border-[3px] border-brass bg-brass p-[3px]">
             <div className="rounded-full bg-hud-black p-2.5 md:p-3">
               <HornBadge size={44} ringClassName="text-brass" fillClassName="text-hud-black" />

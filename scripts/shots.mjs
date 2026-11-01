@@ -59,8 +59,18 @@ const externalPort = args.get("port") ? Number(args.get("port")) : null;
  * machines rather than inheriting whatever the host reports.
  */
 const VIEWPORTS = [
+  // The narrowest phone still in meaningful use. If the chrome survives 320
+  // it survives anything.
+  { id: "xs", width: 320, height: 568, deviceScaleFactor: 2, isMobile: true },
+  // The design width from the standard.
   { id: "phone", width: 390, height: 844, deviceScaleFactor: 2, isMobile: true },
+  // Just under the md breakpoint, where the layout is still in its mobile
+  // form at nearly tablet width - historically where things break.
+  { id: "phone-lg", width: 430, height: 932, deviceScaleFactor: 2, isMobile: true },
+  { id: "tablet", width: 768, height: 1024, deviceScaleFactor: 2, isMobile: true },
+  { id: "laptop", width: 1280, height: 800, deviceScaleFactor: 2, isMobile: false },
   { id: "desktop", width: 1440, height: 900, deviceScaleFactor: 2, isMobile: false },
+  { id: "wide", width: 1920, height: 1080, deviceScaleFactor: 1, isMobile: false },
 ];
 
 /** `freeze` pins the clock; `wait` is extra settle time for first paint. */
@@ -233,7 +243,9 @@ async function main() {
 
       for (const target of TARGETS) {
         if (only && !target.id.includes(only)) continue;
-        if (target.phoneOnly && viewport.id !== "phone") continue;
+        // The drawer trigger is lg:hidden, so it exists below 1024 - not
+        // below 768, and not merely on "mobile" viewports.
+        if (target.phoneOnly && viewport.width >= 1024) continue;
 
         const context = await browser.newContext({
           viewport: { width: viewport.width, height: viewport.height },
@@ -257,11 +269,50 @@ async function main() {
 
           // Horizontal overflow at phone width is the defect that shipped
           // once already, so it is asserted on every run rather than eyeballed.
-          const overflow = await page.evaluate(
-            () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
-          );
-          if (overflow > 0) {
-            problems.push(`${target.id}/${viewport.id}: ${overflow}px horizontal overflow`);
+          /*
+           * Design tokens must actually resolve.
+           *
+           * The colour palette moved into CSS custom properties, and an edit
+           * that failed to apply left every `var(--brass)` resolving to
+           * nothing: the chrome rendered black and the gold rendered grey on
+           * every viewport. Nothing threw and nothing overflowed, so the run
+           * came back clean - the regression was only visible to a human
+           * opening a PNG. This makes it fail loudly instead.
+           */
+          const tokens = await page.evaluate(() => {
+            const style = getComputedStyle(document.documentElement);
+            const required = ["--brass", "--hud-green", "--ash", "--void", "--safe-bottom"];
+            return required.filter((name) => !style.getPropertyValue(name).trim());
+          });
+          if (tokens.length) {
+            problems.push(
+              `${target.id}/${viewport.id}: unresolved design tokens (${tokens.join(", ")})`,
+            );
+          }
+
+          const layout = await page.evaluate(() => {
+            const root = document.documentElement;
+            // Anything sticking out past the right edge of the viewport.
+            const spilling = [...document.querySelectorAll("body *")]
+              .filter((el) => {
+                const r = el.getBoundingClientRect();
+                if (r.width === 0 || r.height === 0) return false;
+                const style = getComputedStyle(el);
+                if (style.visibility === "hidden" || style.opacity === "0") return false;
+                return r.right > root.clientWidth + 1 || r.left < -1;
+              })
+              .slice(0, 3)
+              .map((el) => `${el.tagName.toLowerCase()}.${(el.className || "").toString().split(" ")[0]}`);
+            return {
+              overflow: root.scrollWidth - root.clientWidth,
+              spilling,
+            };
+          });
+          if (layout.overflow > 0) {
+            problems.push(
+              `${target.id}/${viewport.id}: ${layout.overflow}px horizontal overflow` +
+                (layout.spilling.length ? ` (${layout.spilling.join(", ")})` : ""),
+            );
           }
 
           const file = path.join(OUT, `${target.id}-${viewport.id}.png`);
@@ -280,7 +331,10 @@ async function main() {
               throw first;
             }
           }
-          console.log(`  ${path.relative(process.cwd(), file)}${overflow > 0 ? `  OVERFLOW ${overflow}px` : ""}`);
+          console.log(
+            `  ${path.relative(process.cwd(), file)}` +
+              (layout.overflow > 0 ? `  OVERFLOW ${layout.overflow}px` : ""),
+          );
         } catch (error) {
           problems.push(`${target.id}/${viewport.id}: ${error.message.split("\n")[0]}`);
         } finally {

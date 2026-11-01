@@ -10,12 +10,13 @@ Quality bar: **studio-made interactive site, not a tutorial.**
 | `npm run dev` | Dev server |
 | `npm run build` | Production build |
 | `npm run test` | typecheck → lint → evals. Run before every commit |
-| `npm run shots` | Visual QA: screenshots every route at 390×844 and 1440×900 into `/shots` |
+| `npm run shots` | Visual QA: every route at 7 viewports, 320→1920, into `/shots` |
 | `npm run eval` | Causality engine eval harness (threshold 95%) |
 | `npm run typecheck` / `npm run lint` | Individually |
 
 `npm run shots` starts its own dev server, pins the animation clock, and fails the run on any
-page error or horizontal overflow. It needs Playwright; it resolves a global install via CJS,
+page error, horizontal overflow, or unresolved design token. It names the elements that spill.
+Layout breakpoints: the sidebar docks at `lg`; below that it is an off-canvas drawer. It needs Playwright; it resolves a global install via CJS,
 otherwise `npm i -D playwright && npx playwright install chromium`.
 
 ## How to work
@@ -41,8 +42,10 @@ weighted CFG, seeded PRNG. No hosted LLM. Optional Ollama provider behind the sa
 
 ## Design tokens
 
-Sampled from `/design-refs/`. Source of truth is `tailwind.config.ts`; Phase 4 moves these to
-CSS variables.
+Sampled from `/design-refs/`. Source of truth is `:root` in `globals.css`, as space-separated
+RGB channels; `tailwind.config.ts` composes them with `rgb(var(--x) / <alpha-value>)`. **Never
+put a hex string in one of those variables** — it compiles and silently kills every opacity
+modifier in the app.
 
 ```
 hud.green   #0B4A34   chrome ground      brass      #E8C34A   rules, headings
@@ -52,9 +55,16 @@ hud.black   #050807   nav blocks         pill.blue  #2E7BA6   Branch action
 ash         #EDEAE0   body copy          pill.red   #B03A2E   Prune action
 ```
 
-Type scale: 12 / 14 / 16 / 20 / 28 / 40 / 56 / 72. Headline line-height ~0.95, line length < 70ch.
+Colours are CSS custom properties in `globals.css`; `tailwind.config.ts` reads them, so each
+has one definition. The type scale is named by role, not size — `micro` `meta` `body` `lead`
+`title` `display` `hero` `colossal` `monolith`. Headline line-height ~0.95, line length < 70ch.
 Uppercase + wide tracking for short labels only; sentence case beyond 4 words.
-Fonts: Bitter (display) + JetBrains Mono — both OFL. **Self-host via `next/font`.**
+
+Fonts: Bitter (display) + JetBrains Mono, both OFL, self-hosted via `next/font` — do not
+reintroduce a CDN link, the CSP no longer allows one.
+
+Icons: `src/components/icons`, 24px grid, square caps, mitred joins. No icon library.
+Actions: `src/components/ui/Button` — never hand-roll a button's states again.
 
 Avoid AI tells: accent-coloured random word in every headline, an eyebrow over every section,
 `→` on every button.
@@ -139,7 +149,8 @@ No official or copyrighted font, logo or film asset is reproduced. Drop-in point
 
 ## Skills and tools
 
-`frontend-design` — load before building any UI. `webapp-testing` — Playwright patterns.
+`frontend-design` — load before building any UI. It lists all-caps labels and mono data type
+as generic tells; here they are brief-mandated TVA vernacular and stay. `webapp-testing` — Playwright patterns.
 Both vendored in `.claude/skills/` (Apache-2.0, from `anthropics/skills`) so they survive
 container recycling. `security-preflight` before any deploy.
 

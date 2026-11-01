@@ -157,3 +157,46 @@ budget, over the 120k mobile one, so leaf count has to scale with the texture ti
   intermittently refuses a screenshot after several WebGL-heavy pages in one process - renderer
   memory pressure, not a page fault.
 
+## Phase 4 — UI system
+
+- **Fonts self-hosted via next/font.** The CDN link cost a preconnect, a stylesheet round trip
+  and a font round trip before any text could paint, leaked every visitor to a third party, and
+  forced the CSP to allow two Google origins. All three problems go away together and the CSP
+  tightens to 'self'.
+- **`maximumScale: 1` removed.** It silently took magnification away from anyone who needs it,
+  and the canvas has its own gesture handling, so it was never buying anything. `viewportFit:
+  cover` added so the safe-area variables actually resolve.
+- **Colour tokens live in `:root` and Tailwind reads them**, as space-separated RGB channels
+  composed with `rgb(var(--x) / <alpha-value>)`. Holding a hex string in the variable compiles
+  fine and silently breaks every opacity modifier in the project - 87 of them. The visible
+  symptom was a text input rendering solid white, because `bg-hud-black/40` produced nothing.
+- **The sidebar docks at `lg`, not `md`.** At 768 a docked rail plus the event panel left the
+  canvas a 168px strip: the tree, which is the entire point of the screen, became a sliver. A
+  tablet in portrait gets the drawer.
+- **The shots harness asserts design tokens resolve.** The CSS-variable migration shipped with
+  an edit that had silently failed to apply, so the chrome rendered black and the gold grey on
+  every viewport. Nothing threw and nothing overflowed; the run came back clean and only a
+  human opening a PNG could see it. Now it fails loudly.
+- **A type scale named by role, not size** (`meta`, `body`, `title`, `display`, `hero`…), so a
+  component asks for the job it is doing and the ramp can be retuned in one place. It replaces
+  a few dozen arbitrary bracket values.
+- **One icon set on a 24px grid**, square caps and mitred joins, matching the panels' hard
+  corners and 2px rules. It replaces a general-purpose library mixed with one hand-drawn badge,
+  which is why the badge never looked like its neighbours. lucide-react is uninstalled.
+- **One Button primitive.** Every action was a bespoke string of utilities, so the disabled
+  treatment differed between panels and there was no loading state anywhere — a branch request
+  froze its button for two seconds with no sign it had been heard.
+- **A loading button is `aria-busy`, not `disabled`.** A disabled control drops out of the tab
+  order, so focus would be lost from under whoever just pressed it.
+- **The busy strings are named in one place.** `busy` is the status line's own copy, so matching
+  on it couples the spinner to wording that exists to be read. An earlier version guessed
+  "Branching" and the spinner silently never appeared.
+- **Uppercase labels and mono data type stay.** The design skill lists both as generic tells,
+  but the brief pins this axis down: they are the TVA's own vernacular, taken from the
+  reference screenshots, not defaults reached for.
+- **The QA matrix is seven viewports, 320 to 1920.** Two was not enough to catch a layout that
+  breaks between breakpoints, and the overflow check now names the elements that spill rather
+  than only the pixel count.
+- **`phoneOnly` targets gate on width < 768, not `isMobile`.** The tablet viewport sits exactly
+  on the md breakpoint where the drawer trigger becomes `md:hidden`, so an isMobile gate tried
+  to click a hidden button.

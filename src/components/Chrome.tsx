@@ -72,7 +72,7 @@ export function StatusStrip({
 export function Hint({ visible }: { visible: boolean }) {
   if (!visible) return null;
   return (
-    <div className="pointer-events-none absolute bottom-9 left-1/2 z-30 w-full -translate-x-1/2 px-4 text-center font-mono text-[9.5px] uppercase tracking-[0.2em] text-moss-600 md:bottom-4">
+    <div className="pointer-events-none absolute bottom-[calc(2.25rem+var(--safe-bottom))] left-1/2 z-30 w-full -translate-x-1/2 px-4 text-center font-mono text-[9.5px] uppercase tracking-[0.2em] text-moss-600 md:bottom-[calc(1rem+var(--safe-bottom))]">
       Select an event to branch, prune or rewrite it
       {/* Wheel zoom is desktop-only advice, and on a phone this second line
           collided with the disclaimer pinned to the same corner. */}
@@ -122,7 +122,7 @@ export function ResetStamp({ visible }: { visible: boolean }) {
 
 export function Disclaimer() {
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-2 z-30 px-4 text-center font-mono text-[7.5px] leading-relaxed text-moss-800 md:inset-x-auto md:bottom-3 md:right-5 md:max-w-[260px] md:text-right">
+    <div className="pointer-events-none absolute inset-x-0 bottom-[calc(0.5rem+var(--safe-bottom))] z-30 px-4 text-center font-mono text-[7.5px] leading-relaxed text-moss-800 md:inset-x-auto md:bottom-[calc(0.75rem+var(--safe-bottom))] md:right-5 md:max-w-[260px] md:text-right">
       Unofficial fan project. Not affiliated with, endorsed by, or sponsored by
       Marvel or Disney.
     </div>

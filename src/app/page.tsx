@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { GitBranch, Scroll } from "lucide-react";
+import { Branch, Ledger } from "@/components/icons";
 
 import TopBar from "@/components/TopBar";
 import Sidebar, { type SidebarPanel } from "@/components/Sidebar";
@@ -380,7 +380,7 @@ function Custodian({ initial }: { initial: Timeline }) {
             />
           )}
 
-          <GraphicsSetting className="absolute bottom-4 left-4 z-30 hidden md:block" />
+          <GraphicsSetting className="absolute bottom-4 left-4 z-30 mb-safe-b ml-safe-l hidden md:block" />
 
           <Texture />
           <MatrixRain active={Boolean(deviation)} />
@@ -396,7 +396,7 @@ function Custodian({ initial }: { initial: Timeline }) {
 
           <AnimatePresence>
             {panel === "branches" && (
-              <SidePanel title="Branches" icon={GitBranch} onClose={() => setPanel(null)}>
+              <SidePanel title="Branches" icon={Branch} onClose={() => setPanel(null)}>
                 <ul className="space-y-2">
                   {timeline.branches.map((b) => {
                     const count = timeline.nodes.filter(
@@ -425,7 +425,7 @@ function Custodian({ initial }: { initial: Timeline }) {
             )}
 
             {panel === "history" && (
-              <SidePanel title="Prune History" icon={Scroll} onClose={() => setPanel(null)}>
+              <SidePanel title="Prune History" icon={Ledger} onClose={() => setPanel(null)}>
                 {timeline.ledger.filter((e) => e.kind === "prune").length === 0 ? (
                   <p className="py-4 text-center font-sans text-[12px] text-ash/50">
                     No branches pruned yet.
@@ -456,7 +456,7 @@ function Custodian({ initial }: { initial: Timeline }) {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -16 }}
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                className="pointer-events-auto absolute inset-x-3 bottom-3 top-3 z-30 flex flex-col gap-3 overflow-y-auto md:inset-x-auto md:bottom-auto md:right-6 md:top-6 md:max-h-[calc(100%-3rem)] md:flex-row md:items-start md:gap-4"
+                className="pointer-events-auto absolute inset-x-3 bottom-3 top-3 z-30 flex flex-col gap-3 overflow-y-auto pb-safe-b pl-safe-l pr-safe-r md:inset-x-auto md:bottom-auto md:right-6 md:top-6 md:max-h-[calc(100%-3rem)] md:flex-row md:items-start md:gap-4 md:p-0"
               >
                 <EventPanel
                   node={selected}
@@ -489,7 +489,7 @@ function Custodian({ initial }: { initial: Timeline }) {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -16 }}
                   transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                  className="pointer-events-auto absolute inset-x-3 bottom-3 z-30 max-h-[70%] overflow-y-auto md:inset-x-auto md:bottom-auto md:right-6 md:top-6 md:max-h-[calc(100%-3rem)]"
+                  className="pointer-events-auto absolute inset-x-3 bottom-3 z-30 max-h-[70%] overflow-y-auto pb-safe-b pl-safe-l pr-safe-r md:inset-x-auto md:bottom-auto md:right-6 md:top-6 md:max-h-[calc(100%-3rem)] md:p-0"
                 >
                   <EventPanel
                     node={selected}

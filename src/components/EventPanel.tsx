@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Hourglass, X } from "lucide-react";
+import { Close, Hourglass } from "@/components/icons";
+import Button from "@/components/ui/Button";
 
 import type { TimelineNode } from "@/lib/types";
 import { LIMITS } from "@/lib/schemas";
@@ -18,6 +19,20 @@ interface Props {
   onBranch: (premise: string) => void;
   onPrune: () => void;
 }
+
+/**
+ * Which action the custodian is waiting on.
+ *
+ * `busy` is the status line's own copy, so matching it here couples the
+ * spinner to wording that exists to be read. Naming the strings in one place
+ * at least makes that coupling visible - an earlier version guessed
+ * "Branching" and the spinner silently never appeared.
+ */
+const BUSY = {
+  branch: "Computing causal cascade",
+  rewrite: "Regenerating downstream",
+  prune: "Composing epitaph",
+} as const;
 
 const blurb = (node: TimelineNode) =>
   node.consequence ||
@@ -71,7 +86,7 @@ export default function EventPanel({
           aria-label="Close panel"
           className="-mr-1 -mt-1 shrink-0 rounded-sm p-1 text-brass/70 hover:text-brass"
         >
-          <X size={18} strokeWidth={2.25} />
+          <Close size={18} />
         </button>
       </div>
       <div className="mb-3 mt-1.5 h-[2px] w-full bg-brass" />
@@ -95,7 +110,7 @@ export default function EventPanel({
       </div>
       <div className="mb-4 flex items-center gap-2.5">
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-brass bg-hud-black">
-          <Hourglass size={17} strokeWidth={2} className="text-brass" />
+          <Hourglass size={17} className="text-brass" />
         </span>
         <span className="font-sans text-[14px] font-bold uppercase leading-tight text-white md:text-[15px]">
           {originLabel}
@@ -127,40 +142,48 @@ export default function EventPanel({
         />
 
         <div className="flex justify-end">
-          <button
-            type="button"
+          <Button
+            variant="quiet"
+            size="sm"
             disabled={disabled || !titleChanged}
+            loading={busy === BUSY.rewrite}
+            loadingLabel="Saving"
             onClick={() => onSave(title.trim())}
-            className="rounded-full border-2 border-brass px-6 py-1 font-sans text-[12px] font-bold uppercase tracking-[0.08em] text-brass transition-colors hover:bg-brass hover:text-hud-black disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:bg-transparent disabled:hover:text-brass"
           >
             Save
-          </button>
+          </Button>
         </div>
       </div>
 
-      <motion.button
-        type="button"
-        disabled={disabled || !canBranch}
-        onClick={() => onBranch(premise.trim())}
+      <motion.div
         animate={
           warning
             ? { boxShadow: ["0 0 0 0 rgba(232,195,74,0.75)", "0 0 0 12px rgba(232,195,74,0)"] }
             : undefined
         }
         transition={warning ? { duration: 1.5, repeat: Infinity } : undefined}
-        className="mb-2.5 w-full rounded-full border border-brass/40 bg-pill-blue py-2.5 font-sans text-[13px] font-extrabold uppercase tracking-[0.05em] text-white transition-colors hover:bg-pill-blueDark disabled:cursor-not-allowed disabled:opacity-45"
+        className="mb-2.5 rounded-full"
       >
-        Branch New Timeline
-      </motion.button>
+        <Button
+          variant="commit"
+          disabled={disabled || !canBranch}
+          loading={busy === BUSY.branch}
+          loadingLabel="Branching"
+          onClick={() => onBranch(premise.trim())}
+        >
+          Branch New Timeline
+        </Button>
+      </motion.div>
 
-      <button
-        type="button"
+      <Button
+        variant="danger"
         disabled={disabled}
+        loading={busy === BUSY.prune}
+        loadingLabel="Pruning"
         onClick={onPrune}
-        className="w-full rounded-full border border-brass/40 bg-pill-red py-2.5 font-sans text-[13px] font-extrabold uppercase tracking-[0.05em] text-white transition-colors hover:bg-pill-redDark disabled:cursor-not-allowed disabled:opacity-45"
       >
         Prune Timeline
-      </button>
+      </Button>
     </div>
   );
 }

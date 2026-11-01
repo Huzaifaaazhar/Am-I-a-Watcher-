@@ -1,6 +1,6 @@
 "use client";
 
-import { Menu } from "lucide-react";
+import { Menu } from "@/components/icons";
 
 import HornBadge from "./HornBadge";
 
@@ -10,15 +10,15 @@ import HornBadge from "./HornBadge";
  */
 export default function TopBar({ onToggleNav }: { onToggleNav: () => void }) {
   return (
-    <header className="relative z-40 flex h-[62px] shrink-0 items-center justify-between border-b-2 border-brass bg-hud-green px-4 md:h-[92px] md:px-8">
+    <header className="relative z-40 flex pl-safe-l pr-safe-r pt-safe-t h-[62px] shrink-0 items-center justify-between border-b-2 border-brass bg-hud-green px-4 md:h-[92px] md:px-8">
       <div className="flex min-w-0 items-center gap-3">
         <button
           type="button"
           onClick={onToggleNav}
           aria-label="Open navigation"
-          className="-ml-1 shrink-0 rounded-sm border border-brass/60 p-1.5 text-brass md:hidden"
+          className="-ml-1 shrink-0 rounded-sm border border-brass/60 p-1.5 text-brass lg:hidden"
         >
-          <Menu size={20} strokeWidth={2.25} />
+          <Menu size={20} />
         </button>
         <h1 className="truncate font-sans text-[19px] font-extrabold uppercase tracking-[0.04em] text-brass md:text-[32px] md:tracking-[0.05em]">
           Am I a Watcher

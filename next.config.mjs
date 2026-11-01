@@ -14,8 +14,9 @@ const csp = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline'" +
     (process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""),
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-  "font-src 'self' https://fonts.gstatic.com data:",
+  "style-src 'self' 'unsafe-inline'",
+  // Fonts are self-hosted via next/font, so no third-party origin is needed.
+  "font-src 'self' data:",
   "img-src 'self' data: blob:",
   // The browser only ever talks to this origin - the Anthropic call is server-side.
   "connect-src 'self'",

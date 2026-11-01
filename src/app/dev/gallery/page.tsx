@@ -10,6 +10,8 @@ import HornBadge from "@/components/HornBadge";
 import TopBar from "@/components/TopBar";
 import Sidebar from "@/components/Sidebar";
 import { Working, ResetStamp, Hint } from "@/components/Chrome";
+import Button, { type ButtonVariant } from "@/components/ui/Button";
+import * as Icons from "@/components/icons";
 import type { Branch, TimelineNode } from "@/lib/types";
 
 /**
@@ -115,6 +117,61 @@ export default function GalleryPage() {
         </div>
       </Section>
 
+      <Section title="Icons">
+        <p className="mb-3 max-w-[60ch] font-sans text-[12px] leading-relaxed text-ash/50">
+          One 24px grid, one stroke weight, square caps and mitred joins, to match the
+          panels&rsquo; hard corners. Replaces a general-purpose library that was mixed with a
+          single hand-drawn badge.
+        </p>
+        <div className="flex flex-wrap gap-5">
+          {(
+            [
+              ["Close", Icons.Close],
+              ["Menu", Icons.Menu],
+              ["Hourglass", Icons.Hourglass],
+              ["Branch", Icons.Branch],
+              ["Prune", Icons.Prune],
+              ["Ledger", Icons.Ledger],
+              ["Alert", Icons.Alert],
+              ["Spinner", Icons.Spinner],
+            ] as const
+          ).map(([name, Glyph]) => (
+            <div key={name} className="flex w-16 flex-col items-center gap-1.5">
+              <span className="flex h-11 w-11 items-center justify-center border border-brass/25 text-brass">
+                <Glyph size={24} />
+              </span>
+              <span className="font-mono text-[9px] text-ash/45">{name}</span>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      <Section title="Buttons">
+        <div className="space-y-4">
+          {(["commit", "danger", "quiet", "ghost"] as ButtonVariant[]).map((variant) => (
+            <div key={variant} className="flex flex-wrap items-center gap-3">
+              <span className="w-16 font-mono text-[9px] text-ash/45">{variant}</span>
+              <div className="w-[190px]">
+                <Button variant={variant}>Default</Button>
+              </div>
+              <div className="w-[190px]">
+                <Button variant={variant} disabled>
+                  Disabled
+                </Button>
+              </div>
+              <div className="w-[190px]">
+                <Button variant={variant} loading loadingLabel="Working">
+                  Loading
+                </Button>
+              </div>
+              <Button variant={variant} size="sm">
+                Small
+              </Button>
+            </div>
+          ))}
+        </div>
+      </Section>
+
       <Section title="Instability gauge">
         <div className="flex flex-wrap gap-6">
           {[0, 35, 72, 100].map((v) => (
@@ -152,11 +209,13 @@ export default function GalleryPage() {
             />
           </div>
           <div>
-            <p className="mb-1.5 font-mono text-[9px] text-ash/40">busy (all actions disabled)</p>
+            <p className="mb-1.5 font-mono text-[9px] text-ash/40">
+              busy — branch in flight, spinner on the action that caused it
+            </p>
             <EventPanel
               node={NODE}
               originLabel="The Sacred Timeline"
-              busy="Branching"
+              busy="Computing causal cascade"
               onClose={() => {}}
               onSave={() => {}}
               onBranch={() => {}}
