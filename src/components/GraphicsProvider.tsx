@@ -17,7 +17,7 @@ import {
   type QualityTier,
   type RenderMode,
 } from "@/lib/capabilities";
-import { forceFlat } from "@/lib/debug";
+import { forceFlat, forcedTier } from "@/lib/debug";
 
 /**
  * Graphics quality, shared by the scene and the settings control.
@@ -57,8 +57,9 @@ export function GraphicsProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // Private mode, blocked storage - the default is fine.
     }
-    setSettingState(stored);
-    setTier(initialTier(stored));
+    const pinned = forcedTier();
+    setSettingState(pinned ?? stored);
+    setTier(pinned ?? initialTier(stored));
     setMode(renderMode(forceFlat()));
   }, []);
 

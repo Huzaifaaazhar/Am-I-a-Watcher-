@@ -8,7 +8,8 @@
  *   nonce would force every page dynamic. The risk is bounded here: the app has
  *   no HTML injection sink (no dangerouslySetInnerHTML / innerHTML anywhere),
  *   and all model output renders as escaped React text.
- * - Fonts are the only permitted third-party origin.
+ * - No third-party origin is permitted at all: fonts are self-hosted via
+ *   next/font, so every byte the browser fetches comes from this origin.
  */
 const csp = [
   "default-src 'self'",

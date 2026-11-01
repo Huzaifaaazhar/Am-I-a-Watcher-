@@ -1,7 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
+import type gsap from "gsap";
 import { useFrame, useThree } from "@react-three/fiber";
+
+import { playShot, type ShotName } from "@/three/shots";
+import { prefersReducedMotion } from "@/lib/capabilities";
 import * as THREE from "three";
 
 interface Props {
@@ -9,6 +13,11 @@ interface Props {
   focus: THREE.Vector3 | null;
   /** Slow idle drift so the tree feels alive between actions. */
   idle: boolean;
+  /**
+   * A named shot to play. Changing it interrupts whatever is running.
+   * See src/three/shots.ts.
+   */
+  shot?: ShotName | null;
   /**
    * The tree's extents - see fitToTree in Scene. The camera distance that
    * holds them is worked out here rather than there, because it depends on
@@ -28,7 +37,7 @@ const IDLE_SPEED = 0.045;
  * OrbitControls, and this only needs drag-to-rotate, wheel-to-zoom and a
  * smooth zoom-to-node. Everything is damped so recorded footage never snaps.
  */
-export default function CameraRig({ focus, idle, fit }: Props) {
+export default function CameraRig({ focus, idle, fit, shot = null }: Props) {
   const { camera, gl } = useThree();
   const size = useThree((state) => state.size);
 
@@ -63,12 +72,34 @@ export default function CameraRig({ focus, idle, fit }: Props) {
   const wantTarget = useRef(new THREE.Vector3(0, fit.centerY, 0));
   const dragging = useRef(false);
   const interactedAt = useRef(0);
+  /** Non-null while a named shot is running. */
+  const timeline = useRef<gsap.core.Timeline | null>(null);
+  const scripted = useRef(false);
   const last = useRef({ x: 0, y: 0 });
+
+  /**
+   * Stops a running shot and hands control back to the damping loop.
+   *
+   * `want` is synced to wherever the shot got to, so releasing control does
+   * not snap the camera back to a target set before the shot began.
+   */
+  const cancelShot = useCallback(() => {
+    if (!timeline.current) return;
+    timeline.current.kill();
+    timeline.current = null;
+    scripted.current = false;
+    want.current.theta = has.current.theta;
+    want.current.phi = has.current.phi;
+    want.current.radius = has.current.radius;
+    wantTarget.current.copy(target.current);
+  }, []);
 
   useEffect(() => {
     const el = gl.domElement;
 
     const down = (e: PointerEvent) => {
+      // A person touching the scene outranks a scripted move.
+      cancelShot();
       dragging.current = true;
       interactedAt.current = performance.now();
       last.current = { x: e.clientX, y: e.clientY };
@@ -96,6 +127,7 @@ export default function CameraRig({ focus, idle, fit }: Props) {
 
     const wheel = (e: WheelEvent) => {
       e.preventDefault();
+      cancelShot();
       want.current.radius = THREE.MathUtils.clamp(
         want.current.radius * (1 + Math.sign(e.deltaY) * 0.09),
         MIN_RADIUS,
@@ -117,10 +149,33 @@ export default function CameraRig({ focus, idle, fit }: Props) {
       el.removeEventListener("pointercancel", up);
       el.removeEventListener("wheel", wheel);
     };
-  }, [gl]);
+  }, [gl, cancelShot]);
 
-  // Zoom-to-node: reframe on the selected marker and pull in close.
+  // Named shots. Each change interrupts whatever was running.
   useEffect(() => {
+    if (!shot) return;
+    cancelShot();
+    scripted.current = true;
+    interactedAt.current = performance.now();
+    timeline.current = playShot(shot, {
+      orbit: has.current,
+      target: target.current,
+      context: { distance, centerY: fit.centerY, focus },
+      // Someone who asked for reduced motion gets the destination, not the
+      // journey. The framing still changes; it simply does not swoop.
+      immediate: prefersReducedMotion(),
+      onComplete: cancelShot,
+    });
+    return () => {
+      timeline.current?.kill();
+      timeline.current = null;
+      scripted.current = false;
+    };
+  }, [shot, focus, distance, fit.centerY, cancelShot]);
+
+  // Zoom-to-node for selections that arrive without an explicit shot.
+  useEffect(() => {
+    if (shot) return;
     if (focus) {
       wantTarget.current.copy(focus);
       // Move in on the node but keep the surrounding tree in frame - filling
@@ -135,10 +190,30 @@ export default function CameraRig({ focus, idle, fit }: Props) {
       wantTarget.current.set(0, fit.centerY, 0);
       want.current.radius = distance;
     }
-  }, [focus, fit.centerY, distance]);
+  }, [shot, focus, fit.centerY, distance]);
+
+  /** Writes the orbit state onto the camera. Shared by both paths. */
+  const applyOrbit = useCallback(() => {
+    const { theta, phi, radius } = has.current;
+    const sinPhi = Math.sin(phi);
+    camera.position.set(
+      target.current.x + radius * sinPhi * Math.sin(theta),
+      target.current.y + radius * Math.cos(phi),
+      target.current.z + radius * sinPhi * Math.cos(theta),
+    );
+    camera.lookAt(target.current);
+  }, [camera]);
 
   useFrame((_, delta) => {
     const dt = Math.min(delta, 0.1);
+
+    // While a shot runs it owns theta, phi, radius and the look-at point
+    // outright. Damping toward them at the same time would fight the easing
+    // curve and flatten it.
+    if (scripted.current) {
+      applyOrbit();
+      return;
+    }
 
     // Resume the idle orbit only once the custodian has stopped fiddling.
     const quiet = performance.now() - interactedAt.current > 2600;
@@ -163,14 +238,7 @@ export default function CameraRig({ focus, idle, fit }: Props) {
     has.current.radius += (want.current.radius - has.current.radius) * k;
     target.current.lerp(wantTarget.current, k);
 
-    const { theta, phi, radius } = has.current;
-    const sinPhi = Math.sin(phi);
-    camera.position.set(
-      target.current.x + radius * sinPhi * Math.sin(theta),
-      target.current.y + radius * Math.cos(phi),
-      target.current.z + radius * sinPhi * Math.cos(theta),
-    );
-    camera.lookAt(target.current);
+    applyOrbit();
   });
 
   return null;

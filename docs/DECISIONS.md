@@ -200,3 +200,38 @@ budget, over the 120k mobile one, so leaf count has to scale with the texture ti
 - **`phoneOnly` targets gate on width < 768, not `isMobile`.** The tablet viewport sits exactly
   on the md breakpoint where the drawer trigger becomes `md:hidden`, so an isMobile gate tried
   to click a hidden button.
+
+## Phase 5 — motion and polish
+
+- **Named shots in `src/three/shots.ts`, not ad-hoc lerps.** Every scripted move now has a
+  name, a duration and an easing curve somebody chose. Hard cuts are deliberately unavailable:
+  a cut between two views of the same object reads as a glitch, because the viewer cannot tell
+  the object did not move.
+- **Shots drive the rig's *current* state, not its desired state.** The rig damps toward a
+  target every frame; tweening into that damping compounds two smoothings and the easing stops
+  being the easing you wrote.
+- **Pointer input cancels a running shot.** A person touching the scene outranks a script, and
+  `want` is synced to wherever the shot got to so releasing control does not snap back to a
+  target set before it began.
+- **Reduced motion gets the destination, not the journey.** Shots play at zero duration, so the
+  framing still changes but nothing swoops.
+- **`reveal-push-in` settles with `back.out(1.1)`.** Checklist item 10 asks for overshoot and
+  settle; a move that slides to a mathematical halt has no weight.
+- **Depth of field only while an event is selected.** Item 7 is explicit that it belongs on
+  hero shots, and a permanent shallow focus makes an interface tiring to read. The focus point
+  is the selected event, so the blur says "look here" rather than decorating. Dropped entirely
+  at the low tier - it is the most expensive pass in the chain.
+- **The focus distance is derived, not measured per frame.** A focal plane chasing the camera
+  during the push-in re-racks continuously, which reads as the lens hunting.
+- **Dust motes as the depth cue.** A scene with one subject in a void has nothing to measure
+  depth against; specks at varying distances give parallax as the camera orbits. They are also
+  the only thing moving when nothing is happening, which stops a still shot looking like a
+  screenshot.
+- **`?gfx=high|low` pins the quality tier.** Build machines report few cores, so the device
+  probe picks "low" on every one of them - which meant every screenshot ever taken of this
+  project was of the low tier and the high tier had never actually been looked at.
+- **Label chips clear the open panel.** They were sliding under it and getting cut mid-word;
+  the Projector now reserves the panel's width on the right, above the md breakpoint only.
+- **Motes are tuned deliberately under the bloom threshold.** Brighter and every speck picks up
+  a halo, turning fine dust into a field of bokeh balls that competes with the tree.
+

@@ -76,6 +76,9 @@ const VIEWPORTS = [
 /** `freeze` pins the clock; `wait` is extra settle time for first paint. */
 const TARGETS = [
   { id: "tree", url: "/?freeze=2", wait: 2600 },
+  // Build machines report few cores, so the device probe picks "low" on all
+  // of them. Without pinning, the high tier is never actually photographed.
+  { id: "tree-high", url: "/?freeze=2&gfx=high", wait: 3000, wideOnly: true },
   { id: "tree-orbit", url: "/?freeze=9", wait: 2600 },
   { id: "panel", url: "/?freeze=3", wait: 2600, action: "select" },
   { id: "nav", url: "/?freeze=2", wait: 2000, action: "nav", phoneOnly: true },
@@ -246,6 +249,7 @@ async function main() {
         // The drawer trigger is lg:hidden, so it exists below 1024 - not
         // below 768, and not merely on "mobile" viewports.
         if (target.phoneOnly && viewport.width >= 1024) continue;
+        if (target.wideOnly && viewport.width < 1280) continue;
 
         const context = await browser.newContext({
           viewport: { width: viewport.width, height: viewport.height },

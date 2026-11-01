@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, type MutableRefObject } from "react";
+import { useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 
@@ -12,6 +12,7 @@ import {
   Noise,
   SMAA,
   ToneMapping,
+  DepthOfField,
 } from "@react-three/postprocessing";
 import { BlendFunction, ToneMappingMode } from "postprocessing";
 
@@ -20,8 +21,10 @@ import CameraRig from "./CameraRig";
 import PruneBurst from "./PruneBurst";
 import Cosmos from "./Cosmos";
 import Ground from "./Ground";
+import Motes from "./Motes";
 import { HDRI_URL } from "@/three/textures";
 import { useGraphics } from "./GraphicsProvider";
+import type { ShotName } from "@/three/shots";
 import { freezeAt } from "@/lib/debug";
 import type { Branch, LayoutPoint, TimelineNode } from "@/lib/types";
 import type { PointCloud } from "@/lib/vfx";
@@ -133,6 +136,7 @@ function Projector({
   implode,
   selectedId,
   centerY,
+  rightGutter,
   labelRefs,
 }: {
   nodes: TimelineNode[];
@@ -141,6 +145,8 @@ function Projector({
   selectedId: string | null;
   /** Height of the tree's centre, so the depth fade can be scale-relative. */
   centerY: number;
+  /** Pixels reserved on the right for an open panel. */
+  rightGutter: number;
   labelRefs: MutableRefObject<Map<string, HTMLElement>>;
 }) {
   const { camera, size } = useThree();
@@ -246,8 +252,11 @@ function Projector({
       // The chip sits beside the marker, clear of the branch it belongs to,
       // and is flipped or clamped rather than allowed off-screen - on a phone
       // a right-hand chip on a centred trunk runs straight off the edge.
+      // The panel overlays the right of the canvas, so chips have to clear
+      // it rather than slide underneath and get cut off mid-word.
+      const rightEdge = size.width - rightGutter - 8;
       let left = c.side > 0 ? c.x + 18 : c.x - 18 - w;
-      if (left + w > size.width - 8) left = Math.min(c.x - 18 - w, size.width - 8 - w);
+      if (left + w > rightEdge) left = Math.min(c.x - 18 - w, rightEdge - w);
       if (left < 8) left = Math.min(8, size.width - 8 - w);
       const top = THREE.MathUtils.clamp(c.y - h / 2, 6, Math.max(6, size.height - h - 6));
       const right = left + w + 8;
@@ -310,6 +319,50 @@ export default function Scene({
   const frozen = useMemo(() => freezeAt(), []);
   const { budget, reportPerformance } = useGraphics();
 
+  const focus = useMemo(() => {
+    if (!selectedId) return null;
+    const p = layout.get(selectedId);
+    return p ? new THREE.Vector3(p.x, p.y, p.z) : null;
+  }, [selectedId, layout]);
+
+  /**
+   * How far the focal plane sits from the camera once the push-in settles.
+   *
+   * Derived rather than measured per frame: a focus distance that chases the
+   * camera during the move would keep re-racking, which reads as the lens
+   * hunting. It is the distance the shot is heading for.
+   */
+  const focusDistance = useMemo(
+    () => (focus ? Math.max(fit.height * 0.55, 12) : null),
+    [focus, fit.height],
+  );
+
+  /**
+   * The named shot for the current state. Selecting an event pushes in;
+   * clearing the selection returns to the establishing framing.
+   */
+  const shot = useMemo<ShotName | null>(
+    () => (selectedId ? "reveal-push-in" : null),
+    [selectedId],
+  );
+
+  /**
+   * Width the open panel takes out of the canvas, so labels can keep clear.
+   *
+   * Only above the md breakpoint: below it the panel is a full-width sheet
+   * and there is no gutter to speak of, just an overlay.
+   */
+  const [rightGutter, setRightGutter] = useState(0);
+  useEffect(() => {
+    const update = () => {
+      const wide = window.matchMedia("(min-width: 768px)").matches;
+      setRightGutter(selectedId && wide ? 384 : 0);
+    };
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, [selectedId]);
+
   /**
    * The post chain, as a list.
    *
@@ -352,16 +405,33 @@ export default function Scene({
         />,
       );
     }
+    /*
+     * Depth of field, on the hero shot only.
+     *
+     * Checklist item 7 is explicit that this belongs on hero shots and
+     * nowhere else, and it is right: a permanent shallow focus makes an
+     * interface tiring to read. It appears when an event is selected - the
+     * moment the scene genuinely has a subject - and the focus point is that
+     * event, so the blur says "look here" rather than decorating.
+     *
+     * Omitted entirely at the low tier; it is the most expensive pass here.
+     */
+    if (focusDistance !== null && budget.post) {
+      chain.push(
+        <DepthOfField
+          key="dof"
+          worldFocusDistance={focusDistance}
+          worldFocusRange={focusDistance * 0.45}
+          bokehScale={2.2}
+          resolutionScale={0.5}
+        />,
+      );
+    }
+
     // Last: maps the linear HDR buffer down for display, exactly once.
     chain.push(<ToneMapping key="tone" mode={ToneMappingMode.ACES_FILMIC} />);
     return chain;
-  }, [budget.post]);
-
-  const focus = useMemo(() => {
-    if (!selectedId) return null;
-    const p = layout.get(selectedId);
-    return p ? new THREE.Vector3(p.x, p.y, p.z) : null;
-  }, [selectedId, layout]);
+  }, [budget.post, focusDistance]);
 
   return (
     <Canvas
@@ -434,7 +504,15 @@ export default function Scene({
 
       <Cosmos />
 
-      <CameraRig focus={focus} idle={bursts.length === 0} fit={fit} />
+      {/*
+        Depth cue: specks at varying distances give the eye parallax as the
+        camera orbits, so the air between the viewer and the trunk stops
+        reading as empty. Also the only thing moving when nothing is
+        happening, which keeps a still shot from looking like a screenshot.
+      */}
+      <Motes centerY={fit.centerY} radius={fit.spread * 1.5} />
+
+      <CameraRig focus={focus} idle={bursts.length === 0} fit={fit} shot={shot} />
 
       <TimelineTree
         nodes={nodes}
@@ -480,6 +558,7 @@ export default function Scene({
         implode={implode}
         selectedId={selectedId}
         centerY={fit.centerY}
+        rightGutter={rightGutter}
         labelRefs={labelRefs}
       />
     </Canvas>

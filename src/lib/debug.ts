@@ -15,6 +15,8 @@ const FREEZE = "freeze";
 const DEBUG = "debug";
 /** Forces the non-3D path, so the harness can photograph it on any machine. */
 const FLAT = "flat";
+/** Pins the quality tier, so both can be photographed on one machine. */
+const GFX = "gfx";
 
 function params(): URLSearchParams | null {
   if (typeof window === "undefined") return null;
@@ -56,4 +58,16 @@ export function isFrozen(): boolean {
 export function forceFlat(): boolean {
   const p = params();
   return p?.get(FLAT) === "1";
+}
+
+/**
+ * A quality tier pinned by `?gfx=high` or `?gfx=low`.
+ *
+ * Build machines report few cores, so the device probe picks "low" on every
+ * one of them - which meant every screenshot ever taken of this project was
+ * of the low tier, and the high tier had never actually been looked at.
+ */
+export function forcedTier(): "high" | "low" | null {
+  const value = params()?.get(GFX);
+  return value === "high" || value === "low" ? value : null;
 }
