@@ -283,3 +283,38 @@ the consequence of making the painting the subject rather than a reference.
 - **`FlatTimeline` stopped being a fallback and stayed anyway.** No machine fails to render a
   picture, but a list is still the fastest way to read a 40-event graph and the right shape for
   a screen reader. It is at `?flat=1`.
+
+## Phase 7 - events on the boughs
+
+The painting was right and the geometry on top of it was wrong: every event sat on the trunk, so
+the overlay drew a vertical line of dots up the middle of a multiverse. These are the changes
+that came out of fixing that.
+
+- **Events live out on the boughs, not up the trunk.** A table of eleven limbs traced onto the
+  painting - origins on the trunk at different heights, tips in the canopy and the root tangle -
+  and prime events are handed out along it in year order. Time still moves up the tree; it no
+  longer moves up a line.
+- **The bough table alternates sides deliberately.** Walking up one side and down the other puts
+  every marker on one edge of the painting and reads as a margin, not a canopy.
+- **The trunk is not drawn at all any more.** The sap flow was the vertical line people kept
+  seeing. The painting already has a trunk, lit from inside; adding a glowing stroke to it was
+  drawing over the one part of the artwork that needed no help.
+- **A bough is drawn only while it is the subject.** Tracing all eleven in gold would be the
+  second-tree failure in another costume. At rest the overlay is markers and nothing else.
+- **Deviation limbs are always drawn.** They are not in the painting - they are what the
+  custodian added to it, and seeing that a universe is now growing there is the point of the
+  screen. They grow from the event that caused them, continuing that bough's own heading.
+- **Nothing is named until it is chosen.** Hover, focus or tap puts one label beside one marker
+  and lights the bough under it. Nine permanent pills buried the artwork they were pinned to.
+- **The mobile dock is permanent, not a sheet that comes and goes.** The canvas above it is
+  therefore always the same size, and the space it occupies was otherwise a blurred void under a
+  letterboxed painting. Idle it is the station summary; select an event and it becomes the panel.
+- **The safe rectangle is as tight as the bough table allows** (500x450). On a phone that number
+  sets the size of the tree: every unit of safe width is a unit the painting cannot use.
+- **The drawer carries the instability readout.** On a phone the gauge is off screen behind the
+  dock, and the column under the nav was a tall empty green field.
+- **One nav block, three times.** They used to size themselves to their own text, so "Branches"
+  was a short box between two tall ones and the column read as three separately positioned
+  buttons. One height, one padding, one border, one gap.
+- **`min-w-0` on the label's title.** Without it the title's min-content width beats the pill's
+  maxWidth, the label refuses to shrink and runs off the canvas instead of truncating.

@@ -207,9 +207,9 @@ async function perform(page, action, viewport) {
   };
 
   const selectEvent = async () => {
-    // A trunk segment, not a label: the labels thin out on narrow screens and
-    // the hit paths are what the interaction actually is.
-    const hit = page.locator('path[role="button"]');
+    // An event marker's hit circle. Nothing is labelled until it is chosen,
+    // so there is no text to aim at - the markers are the interaction.
+    const hit = page.locator('circle[role="button"]');
     if ((await hit.count()) === 0) return false;
     await hit.nth(Math.min(4, (await hit.count()) - 1)).click({ force: true });
     await page.waitForTimeout(700);

@@ -339,6 +339,7 @@ export default function GalleryPage() {
             <Sidebar
               view="sacred"
               onSelect={() => {}}
+              stats={{ events: 9, deviations: 2, instability: 16 }}
               open={navOpen}
               onClose={() => setNavOpen(false)}
             />

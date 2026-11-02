@@ -92,9 +92,10 @@ The Sacred Timeline canvas is one painting (`public/art/world-tree_*.webp`) with
 on top of it. `src/lib/treeMap.ts` holds the geometry, `src/lib/useStage.ts` the fit,
 `src/components/WorldTree.tsx` the rendering.
 
-1. **The painting is the subject.** The overlay is hairlines and markers inside the artwork's
-   own light. Never draw a second tree over a picture of a tree - that is what three earlier
-   attempts produced and it always reads as two misaligned trees.
+1. **The painting is the subject.** At rest the overlay is a scatter of small markers and
+   nothing else - no labels, no leader lines, no drawn trunk. Never draw a second tree over a
+   picture of a tree, and never draw a line through the middle of it: events on the trunk made
+   a multiverse read as a column chart, which is the whole reason Phase 7 exists.
 2. **One box fits all three layers.** Image, SVG and labels are positioned from the single box
    `useStage` returns. Never fit the image with `object-fit` and the overlay with anything
    else; alignment has to be structural, not maintained.
@@ -102,15 +103,16 @@ on top of it. `src/lib/treeMap.ts` holds the geometry, `src/lib/useStage.ts` the
    aspect. Nothing in `treeMap.ts` may know about pixels or breakpoints.
 4. **The fit is cover, clamped by a safe rectangle.** The outermost limbs are the interface;
    cropping them off a portrait canvas is a broken screen, not a tight crop.
-5. **Every branch is independently selectable**, with its own hit path, and the trunk is split
-   into one hit segment per event. One rectangle over the whole tree is not an interaction.
+5. **Every event is independently selectable** - its own marker hit circle and its own bough
+   hit path. One rectangle over the whole tree is not an interaction.
 6. **The hit area and the visible stroke are separate paths.** ~34 art units of transparent
    stroke behind a 2-unit hairline: `pointer-events="stroke"` responds to the stroke area
    whatever its paint.
 7. **Animation is CSS, not a frame loop.** Dash offsets, opacity and transforms only; anything
    that needs `requestAnimationFrame` to animate the overlay is the wrong approach.
-8. **Restraint.** Slow pulses, a sap flow in the trunk, a drifting mote field. If it flashes,
-   strobes or competes with the painting, cut it.
+8. **Restraint.** Slow pulses, a drifting mote field, one label at a time. A name appears only
+   for the marker under the pointer or the one that is selected, and the bough it sits on
+   lights with it. If it flashes, strobes or competes with the painting, cut it.
 9. **Reduced motion stops all of it** (`globals.css`, one media query at the foot), without
    changing the layout or removing a single control.
 10. **Nothing destructive happens without confirmation**, and destruction is animated: the limb
@@ -138,6 +140,10 @@ the canvas, generated geometry never is.
   selection state and the same action panel. It is no longer a capability gate - every browser
   can render a picture - but it stays, because it is the right shape for a screen reader and
   the fastest way to read a 40-event graph.
+
+Mobile is a hero and a dock, not a shrunk desktop: the canvas takes the room above a permanent
+bottom dock, which is the station summary at rest and the event panel once something is chosen.
+The dock's measured height is what the canvas fits itself into, so the two never fight.
 
 Component states: `/dev/gallery`. 404s in production.
 

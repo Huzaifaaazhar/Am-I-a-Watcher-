@@ -85,12 +85,19 @@ export function StatusStrip({
 export function CanvasFooter({ hint }: { hint: boolean }) {
   return (
     <div className="pointer-events-none absolute inset-x-0 bottom-[calc(0.5rem+var(--safe-bottom))] z-30 flex flex-col items-center gap-2 px-4 text-center">
+      {/* The painting's foot is where the dark roots are, and mono caps at
+          8px over them was unreadable. A short scrim buys the contrast
+          without putting a bar across the artwork. */}
+      <div
+        aria-hidden
+        className="absolute inset-x-0 bottom-[calc(-0.5rem-var(--safe-bottom))] -z-10 h-28 bg-gradient-to-t from-black/70 via-black/35 to-transparent"
+      />
       {hint && (
         <p className="max-w-[34rem] font-mono text-[9.5px] uppercase leading-relaxed tracking-[0.2em] text-moss-600">
-          Select an event on the tree to branch, prune or rewrite it
+          Choose a marker on the tree to branch, prune or rewrite its event
           {/* Hover is desktop-only advice. */}
           <span className="mt-1 hidden text-[8px] tracking-[0.16em] text-moss-800 md:block">
-            hover a limb to light it &middot; click to open its timeline
+            hover a marker to name it &middot; click to open its timeline
           </span>
         </p>
       )}

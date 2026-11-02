@@ -18,10 +18,9 @@ export default function RailIdle({
 }) {
   return (
     <Panel title="The Sacred Timeline" eyebrow="Custodian station" className="w-full">
-      <p className="mb-4 font-sans text-[13px] leading-relaxed text-ash/85">
-        One trunk, one history, and every branch that was ever permitted to
-        leave it. Select an event on the tree to read its record, rewrite it,
-        or let it grow a universe of its own.
+      <p className="mb-4 font-sans text-[12.5px] leading-relaxed text-ash/85">
+        Every marker out on the boughs is a recorded event. Choose one to read
+        it, rewrite it, or let it grow a universe of its own.
       </p>
 
       <dl className="grid grid-cols-2 gap-px border border-brass/25 bg-brass/20">
@@ -47,8 +46,17 @@ export default function RailIdle({
         </div>
       </dl>
 
-      <p className="mt-4 font-sans text-[10px] uppercase leading-relaxed tracking-[0.14em] text-ash/40">
-        Tap a branch to inspect it · gold marks a recorded event
+      {/* The paragraph above already says this; on a phone the dock is
+          competing with the tree for height and the line is a duplicate. */}
+      <p className="mt-4 hidden font-sans text-[10px] uppercase leading-relaxed tracking-[0.14em] text-ash/40 lg:block">
+        Gold marks a recorded event · choose one to open its timeline
+      </p>
+
+      {/* The canvas footer carries this on a desktop, where there is room for
+          it over the painting. On a phone the dock is the only place left. */}
+      <p className="mt-3 font-sans text-[9px] leading-relaxed text-ash/30 lg:hidden">
+        Unofficial fan project. Not affiliated with, endorsed by, or sponsored
+        by Marvel or Disney.
       </p>
     </Panel>
   );

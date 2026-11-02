@@ -387,7 +387,7 @@ function Custodian({ initial }: { initial: Timeline }) {
 
   useEffect(() => {
     const el = sheetRef.current;
-    if (!el || docked || !railOpen) {
+    if (!el || docked) {
       setSheetHeight(0);
       return;
     }
@@ -395,7 +395,7 @@ function Custodian({ initial }: { initial: Timeline }) {
     observer.observe(el);
     setSheetHeight(el.offsetHeight);
     return () => observer.disconnect();
-  }, [docked, railOpen]);
+  }, [docked, railOpen, flash]);
 
   return (
     <div className="flex h-[100dvh] w-screen flex-col overflow-hidden bg-hud-black">
@@ -404,6 +404,11 @@ function Custodian({ initial }: { initial: Timeline }) {
       <div className="relative flex min-h-0 flex-1">
         <Sidebar
           view={view}
+          stats={{
+            events: timeline.nodes.filter((n) => n.status !== "pruned").length,
+            deviations: deviationRows.length,
+            instability: timeline.instability,
+          }}
           open={navOpen}
           onClose={() => setNavOpen(false)}
           onSelect={(next) => {
@@ -450,9 +455,13 @@ function Custodian({ initial }: { initial: Timeline }) {
             <InstabilityGauge value={timeline.instability} />
           </div>
 
-          <CanvasFooter
-            hint={!listView && !selected && !busy && !resetting && view === "sacred"}
-          />
+          {/* Desktop only. On a phone it printed over the painting at a
+              contrast nobody could read, and the dock says the same thing. */}
+          {docked && (
+            <CanvasFooter
+              hint={!listView && !selected && !busy && !resetting && view === "sacred"}
+            />
+          )}
           <Working label={busy} />
           <ResetStamp visible={resetting} />
 
@@ -485,43 +494,43 @@ function Custodian({ initial }: { initial: Timeline }) {
             )}
           </AnimatePresence>
 
-          {/* Mobile and tablet: the rail becomes a sheet over the tree, which
-              keeps the painting the main object at phone sizes. */}
-          <AnimatePresence>
-            {railOpen && !docked && (
-              <motion.div
-                ref={sheetRef}
-                key="sheet"
-                initial={{ y: "100%" }}
-                animate={{ y: 0 }}
-                exit={{ y: "100%" }}
-                transition={{ type: "spring", stiffness: 320, damping: 34 }}
-                className="absolute inset-x-0 bottom-0 z-40 max-h-[60%] overflow-y-auto ledger-scroll border-t-2 border-brass bg-hud-green/95 pb-safe-b backdrop-blur-sm"
-              >
-                <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-brass/40" />
-                <div className="space-y-3 p-3">
-                  {rail}
-                  {flash && (
-                    <>
-                      <TimelineViewerPanel
-                        anchor={flash.anchor}
-                        parentLabel={flash.parentLabel}
-                        branchLabel={flash.branch.label}
-                        premise={deviation?.premise ?? ""}
-                        events={flash.events}
-                        successors={flash.successors}
-                      />
-                      <CurrentDeviationsPanel
-                        rows={deviationRows}
-                        selectedBranchId={selected?.branchId ?? null}
-                        onInspect={selectBranch}
-                      />
-                    </>
-                  )}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          {/*
+            Phones and tablets get a dock rather than a sheet that comes and
+            goes. It is always there, so the canvas above it is always the
+            same size - and the space it occupies was otherwise a blurred
+            void under a letterboxed painting. Idle it is the station
+            summary; select an event and the same dock becomes its panel.
+          */}
+          {!docked && (
+            <motion.div
+              ref={sheetRef}
+              initial={false}
+              animate={{ height: "auto" }}
+              className="absolute inset-x-0 bottom-0 z-40 max-h-[56%] overflow-y-auto ledger-scroll border-t-2 border-brass bg-hud-green/95 pb-safe-b backdrop-blur-sm"
+            >
+              <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-brass/40" />
+              <div className="space-y-3 p-3">
+                {rail}
+                {flash && (
+                  <>
+                    <TimelineViewerPanel
+                      anchor={flash.anchor}
+                      parentLabel={flash.parentLabel}
+                      branchLabel={flash.branch.label}
+                      premise={deviation?.premise ?? ""}
+                      events={flash.events}
+                      successors={flash.successors}
+                    />
+                    <CurrentDeviationsPanel
+                      rows={deviationRows}
+                      selectedBranchId={selected?.branchId ?? null}
+                      onInspect={selectBranch}
+                    />
+                  </>
+                )}
+              </div>
+            </motion.div>
+          )}
 
           <AnimatePresence>
             {doomed?.anchor && (

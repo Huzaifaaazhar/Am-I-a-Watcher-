@@ -22,15 +22,19 @@ export interface StageBox {
 }
 
 /**
- * The part of the painting that must never be cropped: the trunk, every limb
- * a branch can reach, and the crown. Cover-fitting a 16:9 painting into a
- * portrait canvas would otherwise throw the outermost limbs off screen, and
- * those limbs are the interface.
+ * The part of the painting that must never be cropped: every bough an event
+ * sits on, with room for the limbs a deviation grows off them. Cover-fitting
+ * a 16:9 painting into a portrait canvas would otherwise throw the outermost
+ * markers off screen, and those markers are the interface.
+ *
+ * It is as tight as the geometry allows, because on a phone this is what sets
+ * the size of the tree: every unit of safe width is a unit the painting
+ * cannot use. 500x450 is the bough table's own extent plus a margin.
  */
-const SAFE = { w: 560, h: 470 };
+const SAFE = { w: 500, h: 450 };
 
 /** Horizontal and vertical centre of interest, in art units. */
-const FOCUS = { x: 500, y: 296 };
+const FOCUS = { x: 516, y: 300 };
 
 const EMPTY: StageBox = {
   left: 0,

@@ -176,29 +176,6 @@ body {
  * SVG every frame for the same picture.
  */
 
-/* Sap climbing the trunk. The dash pattern is one short lit run in a long
-   gap, so what travels reads as a pulse of light inside the bark rather than
-   as a moving line. */
-@keyframes sap-rise {
-  from {
-    stroke-dashoffset: 520;
-  }
-  to {
-    stroke-dashoffset: 0;
-  }
-}
-
-.sap {
-  stroke-dasharray: 26 494;
-  animation: sap-rise 7s linear infinite;
-}
-.sap-2 {
-  animation-delay: -3.4s;
-}
-.sap-3 {
-  animation-delay: -5.6s;
-}
-
 /* A limb breathing while it is merely alive - too slow to catch the eye,
    enough that the tree is never a still image. */
 @keyframes limb-breathe {
@@ -240,6 +217,22 @@ body {
   will-change: transform, opacity;
 }
 
+/* A label arriving: a short fade, nothing else. It is positioned with a
+   transform, so animating transform here would fight the inline one and drag
+   the pill sideways on its way in. */
+@keyframes label-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.label-in {
+  animation: label-in 160ms ease-out both;
+}
+
 /* The selected event's marker. A ring that expands and fades, not a flash. */
 @keyframes marker-ping {
   0% {
@@ -272,16 +265,15 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sap,
   .limb-live,
   .mote,
   .marker-ping,
+  .label-in,
   .limb-draw {
     animation: none !important;
   }
-  .sap {
-    stroke-dasharray: none;
-    opacity: 0.5;
+  .label-in {
+    opacity: 1;
   }
   .limb-draw {
     stroke-dasharray: none;

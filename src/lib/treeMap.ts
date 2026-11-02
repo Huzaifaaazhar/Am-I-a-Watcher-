@@ -1,24 +1,23 @@
 /**
  * Where the timeline graph lives on the painting.
  *
- * The canvas is one piece of artwork with a transparent SVG over it, so every
- * coordinate in this module is in *art space*: the viewBox below, which has
- * the painting's own aspect ratio. Nothing here knows about pixels or
+ * Every coordinate here is in *art space*: the viewBox below, which has the
+ * painting's own aspect ratio. Nothing in this module knows about pixels or
  * breakpoints - the stage scales art space to the screen, and because the
  * image and the overlay are handed the identical box they cannot drift apart.
  *
- * The spine was traced off the painting: the trunk core sits at x ~0.52 of
- * the image width and runs from the root flare at y ~0.90 up to where the
- * crown opens. It was measured, then corrected against a screenshot - the
- * first trace came from a brightness centroid, and the broad glow around the
- * trunk pulled it twenty units to the left of the trunk itself. Limbs leave the spine and sweep outward
- * and then back toward vertical - the arc a real bough makes reaching for
- * light, and the shape the painted branches actually have.
+ * The shape of this changed completely in Phase 7. Events used to be strung
+ * up the trunk, which drew a vertical line of dots through the middle of the
+ * painting and turned a multiverse into a column chart. They now sit out on
+ * the boughs: each event belongs to a limb that leaves the trunk at its own
+ * height and sweeps off to its own side, so the Sacred Timeline reads as a
+ * tree of places rather than a ladder.
  *
- * Limbs are generated from a tuned table rather than hand-written path data
- * because the graph is live: a branch the custodian creates at runtime has to
- * get a limb too, and hand-authored `d` strings only cover the events that
- * happened to be there when they were written.
+ * The boughs are traced onto the painting - origins on the trunk, tips in the
+ * canopy and the root tangle where the artwork actually has branches. The
+ * limbs a deviation grows are generated, because the graph is live: a branch
+ * created at runtime needs geometry too, and hand-written path data only ever
+ * covers the events that happened to exist when it was typed.
  */
 
 import { PRIME_BRANCH_ID } from "./seed";
@@ -48,6 +47,19 @@ function cubicAt([p0, p1, p2, p3]: Cubic, t: number): Pt {
   };
 }
 
+/** The direction of travel at `t`, normalised. */
+function cubicTangent([p0, p1, p2, p3]: Cubic, t: number): Pt {
+  const u = 1 - t;
+  const x =
+    3 * u * u * (p1.x - p0.x) + 6 * u * t * (p2.x - p1.x) + 3 * t * t * (p3.x - p2.x);
+  const y =
+    3 * u * u * (p1.y - p0.y) + 6 * u * t * (p2.y - p1.y) + 3 * t * t * (p3.y - p2.y);
+  const len = Math.hypot(x, y) || 1;
+  return { x: x / len, y: y / len };
+}
+
+const r = (n: number) => Math.round(n * 10) / 10;
+
 function cubicD([p0, p1, p2, p3]: Cubic): string {
   return (
     `M${r(p0.x)},${r(p0.y)} C${r(p1.x)},${r(p1.y)} ` +
@@ -55,135 +67,67 @@ function cubicD([p0, p1, p2, p3]: Cubic): string {
   );
 }
 
-const r = (n: number) => Math.round(n * 10) / 10;
-
-/** Unit vector `deg` away from straight up, positive is clockwise (screen). */
-function dir(deg: number): Pt {
-  const a = (deg * Math.PI) / 180;
-  return { x: Math.sin(a), y: -Math.cos(a) };
-}
-
-/* ------------------------------------------------------------------ spine */
+/* ------------------------------------------------------------------ boughs */
 
 /**
- * The trunk, traced from the painting's glowing core. Four cubics so the lean
- * is continuous rather than kinked - the painted trunk is not a straight rod.
- */
-const SPINE: Cubic[] = [
-  [
-    { x: 537, y: 508 },
-    { x: 536, y: 490 },
-    { x: 535, y: 470 },
-    { x: 533, y: 452 },
-  ],
-  [
-    { x: 533, y: 452 },
-    { x: 532, y: 432 },
-    { x: 530, y: 412 },
-    { x: 529, y: 392 },
-  ],
-  [
-    { x: 529, y: 392 },
-    { x: 528, y: 370 },
-    { x: 526, y: 346 },
-    { x: 525, y: 322 },
-  ],
-  [
-    { x: 525, y: 322 },
-    { x: 524, y: 300 },
-    { x: 522, y: 275 },
-    { x: 521, y: 248 },
-  ],
-];
-
-export const SPINE_D =
-  SPINE.map((c, i) => (i === 0 ? cubicD(c) : cubicD(c).replace(/^M[^C]*/, ""))).join(" ");
-
-/** A point on the trunk. `t` runs 0 at the root flare to 1 at the crown. */
-export function spineAt(t: number): Pt {
-  const clamped = Math.max(0, Math.min(1, t));
-  const scaled = clamped * SPINE.length;
-  const index = Math.min(SPINE.length - 1, Math.floor(scaled));
-  return cubicAt(SPINE[index], scaled - index);
-}
-
-/**
- * Where the prime events sit on the trunk: the oldest just above the roots,
- * the newest at the crown. Kept off both ends - at t=0 a marker lands in the
- * root tangle, at t=1 it is swallowed by the canopy glow.
- */
-const PRIME_FROM = 0.06;
-const PRIME_TO = 0.94;
-
-export function primeT(index: number, count: number): number {
-  if (count <= 1) return 0.5;
-  return PRIME_FROM + (index / (count - 1)) * (PRIME_TO - PRIME_FROM);
-}
-
-/* ------------------------------------------------------------------ limbs */
-
-/**
- * Per-limb character, indexed by branch. Twelve entries, alternating sides,
- * with spread and length varied so no two limbs are the same gesture; past
- * twelve branches it wraps and the small deterministic jitter below keeps the
- * repeats from landing on top of each other.
+ * The limbs of the Sacred Timeline, traced onto the painting.
  *
- * `spread` is the angle from vertical at the tip, `len` the reach in art
- * units, `lift` how hard the limb curls back toward vertical as it extends.
+ * `o` is where the bough leaves the trunk and `t` where it ends; `bow` lifts
+ * its middle off the straight line between them, which is what makes it a
+ * branch rather than a spoke - positive bows upward on screen. `at` is how
+ * far along the bough its event sits, varied so the markers do not all land
+ * on the same radius and read as a dial.
+ *
+ * Written oldest-first: events are handed out in year order, so the sequence
+ * here is also the order time moves through the tree - out along the roots,
+ * then up and alternating across the canopy. Alternating sides is deliberate.
+ * Walking up one side and down the other puts every marker on one edge.
  */
-const LIMB_SHAPE = [
-  { side: -1, spread: 62, len: 268, lift: 0.5 },
-  { side: 1, spread: 58, len: 282, lift: 0.46 },
-  { side: -1, spread: 44, len: 236, lift: 0.56 },
-  { side: 1, spread: 71, len: 248, lift: 0.4 },
-  { side: -1, spread: 76, len: 222, lift: 0.36 },
-  { side: 1, spread: 38, len: 262, lift: 0.6 },
-  { side: -1, spread: 52, len: 206, lift: 0.52 },
-  { side: 1, spread: 66, len: 214, lift: 0.44 },
-  { side: -1, spread: 34, len: 244, lift: 0.62 },
-  { side: 1, spread: 48, len: 196, lift: 0.5 },
-  { side: -1, spread: 69, len: 188, lift: 0.42 },
-  { side: 1, spread: 80, len: 230, lift: 0.34 },
+const BOUGHS: Array<{ o: Pt; t: Pt; bow: number; at: number }> = [
+  { o: { x: 537, y: 486 }, t: { x: 712, y: 492 }, bow: 46, at: 0.76 },
+  { o: { x: 533, y: 474 }, t: { x: 344, y: 498 }, bow: 42, at: 0.74 },
+  { o: { x: 534, y: 430 }, t: { x: 742, y: 408 }, bow: 44, at: 0.78 },
+  { o: { x: 531, y: 436 }, t: { x: 322, y: 428 }, bow: 50, at: 0.66 },
+  { o: { x: 529, y: 384 }, t: { x: 300, y: 312 }, bow: 40, at: 0.76 },
+  { o: { x: 531, y: 376 }, t: { x: 736, y: 300 }, bow: 36, at: 0.68 },
+  { o: { x: 526, y: 334 }, t: { x: 344, y: 196 }, bow: 34, at: 0.72 },
+  { o: { x: 527, y: 328 }, t: { x: 706, y: 182 }, bow: 30, at: 0.8 },
+  { o: { x: 523, y: 296 }, t: { x: 430, y: 92 }, bow: 22, at: 0.7 },
+  { o: { x: 524, y: 290 }, t: { x: 632, y: 86 }, bow: 20, at: 0.76 },
+  { o: { x: 522, y: 278 }, t: { x: 540, y: 64 }, bow: 16, at: 0.72 },
 ];
 
-/**
- * Builds a limb leaving `from`. The three segments turn progressively back
- * toward vertical, which is what stops a limb reading as a spoke: it leaves
- * the trunk at a wide angle and finishes nearly upright, like the painted
- * boughs do.
- */
-function limbCurve(from: Pt, index: number, depth: number): Cubic {
-  const shape = LIMB_SHAPE[index % LIMB_SHAPE.length];
-  // Deterministic wobble so the 13th branch is not a copy of the 1st.
-  const wrap = Math.floor(index / LIMB_SHAPE.length);
-  const jitter = wrap * 11;
-  const taper = Math.pow(0.68, Math.max(0, depth - 1));
+export const BOUGH_COUNT = BOUGHS.length;
 
-  const len = shape.len * taper;
-  const spread = (shape.spread + jitter) * shape.side;
-
-  const p1 = {
-    x: from.x + dir(spread * 0.5).x * len * 0.42,
-    y: from.y + dir(spread * 0.5).y * len * 0.42,
-  };
-  const p2 = {
-    x: p1.x + dir(spread).x * len * 0.36,
-    y: p1.y + dir(spread).y * len * 0.36,
-  };
-  const p3 = {
-    x: p2.x + dir(spread * (1 - shape.lift)).x * len * 0.34,
-    y: p2.y + dir(spread * (1 - shape.lift)).y * len * 0.34,
-  };
-  return [from, p1, p2, p3];
+/** Builds the curve for bough `i`, bowed off the straight line o -> t. */
+function boughCurve(i: number): Cubic {
+  const { o, t, bow } = BOUGHS[i % BOUGHS.length];
+  const dx = t.x - o.x;
+  const dy = t.y - o.y;
+  const len = Math.hypot(dx, dy) || 1;
+  // Perpendicular, pointing up-screen for a bough heading outward either way.
+  const nx = (-dy / len) * Math.sign(dx || 1);
+  const ny = (dx / len) * Math.sign(dx || 1);
+  return [
+    o,
+    { x: o.x + dx * 0.34 + nx * bow, y: o.y + dy * 0.34 + ny * bow },
+    { x: o.x + dx * 0.7 + nx * bow * 0.72, y: o.y + dy * 0.7 + ny * bow * 0.72 },
+    t,
+  ];
 }
 
 /* ------------------------------------------------------------------- plan */
 
+export interface BoughPlan {
+  /** The event this bough carries, so hovering the limb selects the event. */
+  nodeId: string;
+  d: string;
+}
+
 export interface LimbPlan {
   branchId: string;
-  /** Path data for both the visible stroke and the wide invisible hit area. */
   d: string;
-  /** Where it leaves its parent - used to draw the deviation connector. */
+  /** Where it leaves its parent - the event that was changed. */
   origin: Pt;
   tip: Pt;
   depth: number;
@@ -192,26 +136,57 @@ export interface LimbPlan {
 export interface NodePlan {
   node: TimelineNode;
   point: Pt;
-  /** Which way the label should be thrown so it never lands on the trunk. */
+  /** Which way to throw the label so it never lands back on the trunk. */
   side: -1 | 1;
   branchId: string;
 }
 
 export interface TreePlan {
+  boughs: BoughPlan[];
   limbs: LimbPlan[];
   nodes: NodePlan[];
   byNode: Map<string, NodePlan>;
 }
 
 /** Nodes are set in from a limb's ends so the first is clear of the fork. */
-const LIMB_FROM = 0.3;
+const LIMB_FROM = 0.34;
 const LIMB_TO = 0.96;
+
+/**
+ * The curve a deviation grows, leaving the event that caused it.
+ *
+ * It continues the direction its parent was already travelling, turned by a
+ * deterministic splay, so a new branch reads as growth off that limb rather
+ * than as a line that happens to start there. Deeper branches are shorter,
+ * which is what keeps the canopy from turning into a starburst.
+ */
+function limbCurve(from: Pt, heading: Pt, index: number, depth: number): Cubic {
+  const wrap = Math.floor(index / 5);
+  const splay = (((index % 5) - 2) * 26 + wrap * 11) * (Math.PI / 180);
+  const len = 168 * Math.pow(0.7, Math.max(0, depth - 1));
+
+  const turn = (v: Pt, a: number): Pt => ({
+    x: v.x * Math.cos(a) - v.y * Math.sin(a),
+    y: v.x * Math.sin(a) + v.y * Math.cos(a),
+  });
+
+  const d1 = turn(heading, splay * 0.45);
+  const d2 = turn(heading, splay);
+  // The tip lifts toward vertical, the way a growing shoot does.
+  const d3 = { x: d2.x * 0.72, y: d2.y * 0.72 - 0.42 };
+
+  const p1 = { x: from.x + d1.x * len * 0.4, y: from.y + d1.y * len * 0.4 };
+  const p2 = { x: p1.x + d2.x * len * 0.36, y: p1.y + d2.y * len * 0.36 };
+  const p3 = { x: p2.x + d3.x * len * 0.34, y: p2.y + d3.y * len * 0.34 };
+  return [from, p1, p2, p3];
+}
 
 /**
  * Lays the whole live graph onto the painting.
  *
- * Shallowest branch first, so a limb that forks off another limb can anchor
- * to a point that has already been placed.
+ * Prime events are handed out along the bough table in year order. Deviations
+ * are grown from the point of the event they left, shallowest first, so a
+ * branch forking off another branch can anchor to a point already placed.
  */
 export function planTree(timeline: Timeline): TreePlan {
   const alive = timeline.nodes.filter((n) => n.status !== "pruned");
@@ -224,21 +199,27 @@ export function planTree(timeline: Timeline): TreePlan {
   for (const list of byBranch.values()) list.sort((a, b) => a.year - b.year);
 
   const nodes: NodePlan[] = [];
+  const boughs: BoughPlan[] = [];
   const limbs: LimbPlan[] = [];
   const byNode = new Map<string, NodePlan>();
+  /** Remembers which way each node was travelling, for anything growing off it. */
+  const heading = new Map<string, Pt>();
 
   const prime = byBranch.get(PRIME_BRANCH_ID) ?? [];
   prime.forEach((node, i) => {
-    const point = spineAt(primeT(i, prime.length));
-    // Alternate so consecutive trunk labels never stack on the same side.
+    const curve = boughCurve(i);
+    const at = BOUGHS[i % BOUGHS.length].at;
+    const point = cubicAt(curve, at);
     const plan: NodePlan = {
       node,
       point,
-      side: i % 2 === 0 ? -1 : 1,
+      side: point.x >= 520 ? 1 : -1,
       branchId: PRIME_BRANCH_ID,
     };
     nodes.push(plan);
     byNode.set(node.id, plan);
+    heading.set(node.id, cubicTangent(curve, at));
+    boughs.push({ nodeId: node.id, d: cubicD(curve) });
   });
 
   const branches = timeline.branches
@@ -250,8 +231,11 @@ export function planTree(timeline: Timeline): TreePlan {
     if (members.length === 0) continue;
 
     const anchor = branch.originNodeId ? byNode.get(branch.originNodeId) : undefined;
-    const origin = anchor?.point ?? spineAt(0.8);
-    const curve = limbCurve(origin, branch.index, branch.depth);
+    const origin = anchor?.point ?? { x: 520, y: 300 };
+    const head =
+      (branch.originNodeId ? heading.get(branch.originNodeId) : undefined) ??
+      { x: 0, y: -1 };
+    const curve = limbCurve(origin, head, branch.index, branch.depth);
 
     limbs.push({
       branchId: branch.id,
@@ -265,34 +249,14 @@ export function planTree(timeline: Timeline): TreePlan {
     members.forEach((node, i) => {
       const u =
         members.length === 1
-          ? 0.66
+          ? 0.7
           : LIMB_FROM + (i / (members.length - 1)) * (LIMB_TO - LIMB_FROM);
       const plan: NodePlan = { node, point: cubicAt(curve, u), side, branchId: branch.id };
       nodes.push(plan);
       byNode.set(node.id, plan);
+      heading.set(node.id, cubicTangent(curve, u));
     });
   }
 
-  return { limbs, nodes, byNode };
-}
-
-/**
- * The trunk split into one hit segment per prime event, so the trunk is not a
- * single clickable object: each segment selects the event that sits on it.
- */
-export function spineSegments(count: number): Array<{ d: string; index: number }> {
-  if (count === 0) return [];
-  const out: Array<{ d: string; index: number }> = [];
-  for (let i = 0; i < count; i++) {
-    const t0 = i === 0 ? 0 : (primeT(i - 1, count) + primeT(i, count)) / 2;
-    const t1 = i === count - 1 ? 1 : (primeT(i, count) + primeT(i + 1, count)) / 2;
-    const steps = 6;
-    let d = "";
-    for (let s = 0; s <= steps; s++) {
-      const p = spineAt(t0 + ((t1 - t0) * s) / steps);
-      d += `${s === 0 ? "M" : "L"}${r(p.x)},${r(p.y)} `;
-    }
-    out.push({ d: d.trim(), index: i });
-  }
-  return out;
+  return { boughs, limbs, nodes, byNode };
 }
