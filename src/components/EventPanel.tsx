@@ -26,6 +26,8 @@ interface Props {
   siblingCount: number;
   busy: string | null;
   warning?: boolean;
+  /** Fill its column and scroll inside, so the frame stays whole. */
+  fill?: boolean;
   onClose: () => void;
   onSave: (newTitle: string) => void;
   onBranch: (premise: string) => void;
@@ -66,6 +68,7 @@ export default function EventPanel({
   siblingCount,
   busy,
   warning,
+  fill = false,
   onClose,
   onSave,
   onBranch,
@@ -90,6 +93,7 @@ export default function EventPanel({
       eyebrow={warning ? "Timeline editor" : onPrime ? "Sacred timeline" : "Deviant branch"}
       title={node.title}
       tone={warning ? "warn" : "brass"}
+      fill={fill}
       actions={
         <button
           type="button"

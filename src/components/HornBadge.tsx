@@ -11,16 +11,20 @@ export default function HornBadge({
   size = 40,
   ringClassName = "text-brass",
   fillClassName = "text-abyss",
+  className = "",
 }: {
   size?: number;
   ringClassName?: string;
   fillClassName?: string;
+  /** For showing one size and hiding another at a breakpoint. */
+  className?: string;
 }) {
   return (
     <svg
       width={size}
       height={size}
       viewBox="0 0 40 40"
+      className={className}
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden

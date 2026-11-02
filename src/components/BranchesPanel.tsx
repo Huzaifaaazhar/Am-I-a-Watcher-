@@ -14,17 +14,22 @@ export default function BranchesPanel({
   nodes,
   selectedBranchId,
   onInspect,
+  fill = false,
 }: {
   branches: Branch[];
   nodes: TimelineNode[];
   selectedBranchId: string | null;
   onInspect: (branchId: string) => void;
+  /** Stretch to the rail's spare height instead of sitting at the top of it. */
+  fill?: boolean;
 }) {
   const count = (id: string) =>
     nodes.filter((n) => n.branchId === id && n.status !== "pruned").length;
 
   return (
-    <Panel title="Branches" eyebrow="Timeline registry" className="w-full">
+    <Panel title="Branches" eyebrow="Timeline registry" fill={fill}
+      className="w-full"
+    >
       <ul className="space-y-2">
         {branches.map((b) => {
           const alive = b.status === "alive";

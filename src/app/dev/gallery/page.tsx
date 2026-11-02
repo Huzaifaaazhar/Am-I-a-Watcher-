@@ -212,8 +212,8 @@ export default function GalleryPage() {
 
       <Section title="Event panel">
         <div className="flex flex-wrap items-start gap-5">
-          <div className="w-[330px]">
-            <p className="mb-1.5 font-mono text-[9px] text-ash/40">default</p>
+          <div className="flex h-[560px] w-[330px] flex-col">
+            <p className="mb-1.5 shrink-0 font-mono text-[9px] text-ash/40">default</p>
             <EventPanel
               node={NODE}
               branch={PRIME}

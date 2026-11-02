@@ -101,9 +101,6 @@ function Custodian({ initial }: { initial: Timeline }) {
   const docked = useMediaQuery(DOCKED);
   const wideEnoughForTriptych = useMediaQuery(TRIPTYCH);
   const sheetRef = useRef<HTMLDivElement>(null);
-  // Measured rather than assumed: the sheet is as tall as its content up to a
-  // cap, and the canvas has to know how much of itself is covered.
-  const [sheetHeight, setSheetHeight] = useState(0);
 
   const resetGuard = useRef(false);
   const deviationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -356,9 +353,10 @@ function Custodian({ initial }: { initial: Timeline }) {
         nodes={timeline.nodes}
         selectedBranchId={selected?.branchId ?? null}
         onInspect={selectBranch}
+        fill
       />
     ) : view === "history" ? (
-      <PruneHistoryPanel entries={timeline.ledger} />
+      <PruneHistoryPanel entries={timeline.ledger} fill />
     ) : selected ? (
       <EventPanel
         node={selected}
@@ -366,6 +364,7 @@ function Custodian({ initial }: { initial: Timeline }) {
         siblingCount={siblingCount}
         busy={busy}
         warning={Boolean(deviation)}
+        fill
         onClose={() => setSelectedId(null)}
         onSave={(newTitle) => void runRewrite(selected.id, newTitle)}
         onBranch={(premise) => void runBranch(selected.id, premise)}
@@ -378,24 +377,11 @@ function Custodian({ initial }: { initial: Timeline }) {
       />
     );
 
-  const railOpen = view !== "sacred" || Boolean(selected);
-
   // A sheet left where the last scroll put it opens on the middle of a form.
   useEffect(() => {
     sheetRef.current?.scrollTo({ top: 0 });
   }, [selectedId, view, deviation]);
 
-  useEffect(() => {
-    const el = sheetRef.current;
-    if (!el || docked) {
-      setSheetHeight(0);
-      return;
-    }
-    const observer = new ResizeObserver(() => setSheetHeight(el.offsetHeight));
-    observer.observe(el);
-    setSheetHeight(el.offsetHeight);
-    return () => observer.disconnect();
-  }, [docked, railOpen, flash]);
 
   return (
     <div className="flex h-[100dvh] w-screen flex-col overflow-hidden bg-hud-black">
@@ -420,7 +406,21 @@ function Custodian({ initial }: { initial: Timeline }) {
           }}
         />
 
-        <main className="relative min-w-0 flex-1 overflow-hidden">
+        <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
+          {/*
+            The canvas is a hero of a known shape on a phone, not whatever is
+            left once the dock has had its share. 112.6vw is exactly the
+            height at which the painting fills a full-width canvas at the
+            safe rectangle's scale (563/500), so it is the one height that
+            leaves no blurred band at the top and bottom - whatever the dock
+            below happens to contain. `max-h` is the guard for a landscape
+            phone, where that height would be the whole window.
+          */}
+          <div
+            className={`relative min-h-0 overflow-hidden ${
+              docked ? "flex-1" : "h-[112.6vw] max-h-[58dvh] shrink-0"
+            }`}
+          >
           {listView ? (
             <FlatTimeline
               nodes={timeline.nodes}
@@ -444,7 +444,6 @@ function Custodian({ initial }: { initial: Timeline }) {
               // What is docked over the canvas, so the painting and its
               // labels can keep out of the way of it.
               insetRight={flash && wideEnoughForTriptych ? 316 : 0}
-              insetBottom={docked ? 0 : sheetHeight}
             />
           )}
 
@@ -493,23 +492,22 @@ function Custodian({ initial }: { initial: Timeline }) {
               </motion.div>
             )}
           </AnimatePresence>
+          </div>
 
           {/*
             Phones and tablets get a dock rather than a sheet that comes and
-            goes. It is always there, so the canvas above it is always the
-            same size - and the space it occupies was otherwise a blurred
-            void under a letterboxed painting. Idle it is the station
-            summary; select an event and the same dock becomes its panel.
+            goes. It is a sibling of the canvas in a column, not an overlay
+            on it: the canvas owns its height, the dock takes the rest and
+            scrolls, and neither can crowd the other out. Idle it is the
+            station summary; select an event and it becomes its panel.
           */}
           {!docked && (
-            <motion.div
+            <div
               ref={sheetRef}
-              initial={false}
-              animate={{ height: "auto" }}
-              className="absolute inset-x-0 bottom-0 z-40 max-h-[56%] overflow-y-auto ledger-scroll border-t-2 border-brass bg-hud-green/95 pb-safe-b backdrop-blur-sm"
+              className="ledger-scroll flex min-h-0 flex-1 flex-col overflow-y-auto border-t-2 border-brass bg-hud-green pb-safe-b"
             >
-              <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-brass/40" />
-              <div className="space-y-3 p-3">
+              <div className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-brass/40" />
+              <div className="flex min-h-0 flex-1 flex-col gap-3 p-3">
                 {rail}
                 {flash && (
                   <>
@@ -529,7 +527,7 @@ function Custodian({ initial }: { initial: Timeline }) {
                   </>
                 )}
               </div>
-            </motion.div>
+            </div>
           )}
 
           <AnimatePresence>
@@ -551,30 +549,33 @@ function Custodian({ initial }: { initial: Timeline }) {
             event panel beside the tree, not on top of it, and a dock is also
             what keeps the canvas a known size instead of a guess. */}
         {docked && (
-          <aside className="z-20 flex w-[330px] shrink-0 flex-col gap-3 overflow-y-auto ledger-scroll border-l-2 border-brass/70 bg-hud-green p-3 pr-safe-r xl:w-[348px]">
-            {rail}
-            {/* At lg the triptych has no third column, so the chart folds
-                into the rail under the editor rather than vanishing. */}
-            {flash && !wideEnoughForTriptych && (
-              <TimelineViewerPanel
-                anchor={flash.anchor}
-                parentLabel={flash.parentLabel}
-                branchLabel={flash.branch.label}
-                premise={deviation?.premise ?? ""}
-                events={flash.events}
-                successors={flash.successors}
-              />
-            )}
-            {!flash && view === "sacred" && deviationRows.length > 0 && (
-              <CurrentDeviationsPanel
-                rows={deviationRows}
-                selectedBranchId={selected?.branchId ?? null}
-                onInspect={selectBranch}
-              />
-            )}
-            <div className="mt-auto pt-3">
-              <LedgerStrip entries={timeline.ledger} />
+          <aside className="z-20 flex w-[312px] shrink-0 flex-col gap-3 overflow-hidden border-l-2 border-brass/70 bg-hud-green p-3 pr-safe-r xl:w-[330px] 2xl:w-[356px]">
+            <div className="ledger-scroll flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
+              {rail}
+              {/* At lg the triptych has no third column, so the chart folds
+                  into the rail under the editor rather than vanishing. */}
+              {flash && !wideEnoughForTriptych && (
+                <TimelineViewerPanel
+                  anchor={flash.anchor}
+                  parentLabel={flash.parentLabel}
+                  branchLabel={flash.branch.label}
+                  premise={deviation?.premise ?? ""}
+                  events={flash.events}
+                  successors={flash.successors}
+                />
+              )}
+              {!flash && view === "sacred" && deviationRows.length > 0 && (
+                <CurrentDeviationsPanel
+                  rows={deviationRows}
+                  selectedBranchId={selected?.branchId ?? null}
+                  onInspect={selectBranch}
+                />
+              )}
             </div>
+            {/* The foot of the rail, not the foot of the screen: pinned with
+                mt-auto it stranded itself below a 440px void on a short
+                laptop, and clipped its last line against the bottom edge. */}
+            <LedgerStrip entries={timeline.ledger} />
           </aside>
         )}
       </div>

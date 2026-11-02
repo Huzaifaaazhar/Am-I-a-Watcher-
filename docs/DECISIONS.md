@@ -318,3 +318,30 @@ that came out of fixing that.
   buttons. One height, one padding, one border, one gap.
 - **`min-w-0` on the label's title.** Without it the title's min-content width beats the pill's
   maxWidth, the label refuses to shrink and runs off the canvas instead of truncating.
+
+## Phase 7b - the short laptop
+
+A 1366x700 window showed what tall-window screenshots had hidden: a rail that stranded its
+ledger below a 440px void and clipped its last line against the bottom edge, and a header that
+took thirteen per cent of the window.
+
+- **A 1366x700 viewport is in the harness now.** 768 of height with browser chrome on it leaves
+  about 660 for the app, and it is where anything pinned to the foot of a column collides with
+  what is above it. Every earlier viewport was tall enough to hide the problem.
+- **Nothing is pinned to the bottom of the rail any more.** The content column scrolls and the
+  ledger is its foot, so the two cannot drift apart: `mt-auto` is how the ledger ended up alone
+  at the bottom of the screen with its last line cut off.
+- **Panels can fill their column** (`fill` on `ui/Panel`). A short list panel at the top of a
+  tall rail leaves a void; a filled one takes the spare height and scrolls inside, which also
+  keeps its frame whole instead of letting the column crop it mid-form.
+- **The chrome steps at `xl` and `2xl` rather than jumping at `lg`.** Sidebar 292 plus rail 348
+  left a 1366 screen with 726px of canvas - the tree had less than half the window it is the
+  subject of. It is 252 + 330 there now, and the full widths wait for 1536.
+- **The mobile canvas is a fixed-aspect hero, not whatever the dock leaves over.** `112.6vw` is
+  exactly the height at which the painting fills a full-width canvas at the safe rectangle's
+  scale (563/500), so there is no blurred band whatever the dock contains - which is what came
+  back the moment a view with a short dock (an almost-empty prune history) was photographed.
+  The dock is now a sibling in a column rather than an overlay, so measuring its height to tell
+  the canvas what was covered is gone entirely.
+- **Labels are clamped to the canvas vertically too.** A marker on the lowest bough put its pill
+  half under the rail's top border.

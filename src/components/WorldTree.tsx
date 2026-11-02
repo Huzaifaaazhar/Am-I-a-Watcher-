@@ -52,6 +52,8 @@ const HIT_MARKER = 18;
 const LABEL_REACH = 22;
 /** A label needs at least this many pixels on its side, or it flips. */
 const LABEL_MIN_ROOM = 170;
+/** Keep-out from the canvas edges, so a pill is never half off it. */
+const LABEL_EDGE = 20;
 
 const MOTES = 24;
 
@@ -472,6 +474,12 @@ export default function WorldTree({
               ? box.freeWidth - (box.left + (n.point.x + LABEL_REACH) * box.scale)
               : box.left + (n.point.x - LABEL_REACH) * box.scale;
           const anchor = px({ x: n.point.x + side * LABEL_REACH, y: n.point.y });
+          // A marker on the lowest bough sat its label half under the rail's
+          // top border; the canvas is the frame, so the label stays inside it.
+          const top = Math.min(
+            Math.max(anchor.top, LABEL_EDGE),
+            Math.max(LABEL_EDGE, box.stageHeight - LABEL_EDGE),
+          );
           const isSelected = n.node.id === selectedId;
           return (
             <button
@@ -480,7 +488,7 @@ export default function WorldTree({
               onClick={() => onSelect(n.node.id)}
               style={{
                 left: anchor.left,
-                top: anchor.top,
+                top,
                 maxWidth: Math.max(110, room - 12),
                 transform: `translate(${side === 1 ? "0" : "-100%"}, -50%)`,
               }}

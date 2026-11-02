@@ -47,7 +47,7 @@ export default function Sidebar({ view, onSelect, stats, open, onClose }: Props)
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-[244px] flex-col bg-hud-green pl-safe-l pt-safe-t shadow-[8px_0_32px_-12px_rgba(0,0,0,0.8)] transition-transform duration-300 ease-out lg:relative lg:z-30 lg:w-[252px] lg:translate-x-0 lg:pt-0 lg:shadow-none xl:w-[292px] ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-[244px] flex-col bg-hud-green pl-safe-l pt-safe-t shadow-[8px_0_32px_-12px_rgba(0,0,0,0.8)] transition-transform duration-300 ease-out lg:relative lg:z-30 lg:w-[228px] lg:translate-x-0 lg:pt-0 lg:shadow-none xl:w-[252px] 2xl:w-[292px] ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -74,7 +74,7 @@ export default function Sidebar({ view, onSelect, stats, open, onClose }: Props)
                     onSelect(key);
                     onClose();
                   }}
-                  className={`flex h-[72px] w-full items-center border-2 bg-hud-black px-5 text-left font-sans text-[19px] font-extrabold uppercase leading-[1.08] tracking-[0.01em] transition-colors md:h-[78px] xl:h-[84px] xl:text-[22px] ${
+                  className={`flex h-[68px] w-full items-center border-2 bg-hud-black px-4 text-left font-sans text-[17px] font-extrabold uppercase leading-[1.08] tracking-[0.01em] transition-colors md:h-[72px] md:px-5 md:text-[19px] 2xl:h-[84px] 2xl:text-[22px] ${
                     active
                       ? "border-brass text-brass"
                       : "border-weave/40 text-brass/85 hover:border-brass/70 hover:text-brass"
@@ -130,9 +130,16 @@ export default function Sidebar({ view, onSelect, stats, open, onClose }: Props)
         <div className="relative mt-auto flex flex-col items-center gap-3 px-4 pb-[calc(2.25rem+var(--safe-bottom))] pt-8">
           <span className="h-px w-16 bg-brass/30" />
           <div className="rounded-full border-[3px] border-brass bg-brass p-[3px]">
-            <div className="rounded-full bg-hud-black p-3.5">
+            <div className="rounded-full bg-hud-black p-2.5 2xl:p-3.5">
+              <HornBadge
+                size={62}
+                className="2xl:hidden"
+                ringClassName="text-brass"
+                fillClassName="text-hud-black"
+              />
               <HornBadge
                 size={78}
+                className="hidden 2xl:block"
                 ringClassName="text-brass"
                 fillClassName="text-hud-black"
               />

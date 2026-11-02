@@ -69,6 +69,10 @@ const VIEWPORTS = [
   { id: "phone-lg", width: 430, height: 932, deviceScaleFactor: 2, isMobile: true },
   { id: "tablet", width: 768, height: 1024, deviceScaleFactor: 2, isMobile: true },
   { id: "laptop", width: 1280, height: 800, deviceScaleFactor: 2, isMobile: false },
+  // The short laptop. 768px of height with browser chrome on it leaves about
+  // 660 for the app, and it is where anything pinned to the foot of a column
+  // starts colliding with what is above it.
+  { id: "laptop-short", width: 1366, height: 700, deviceScaleFactor: 2, isMobile: false },
   { id: "desktop", width: 1440, height: 900, deviceScaleFactor: 2, isMobile: false },
   { id: "wide", width: 1920, height: 1080, deviceScaleFactor: 1, isMobile: false },
 ];
@@ -83,6 +87,9 @@ const TARGETS = [
   // which is the second reference screen and only exists after an action.
   { id: "deviation", url: "/?freeze=2", wait: 2200, action: "deviate" },
   { id: "nav", url: "/?freeze=2", wait: 1400, action: "nav", phoneOnly: true },
+  // The ledger with something in it: prune, confirm, then open the history.
+  // An empty Prune History panel never shows what a full one does to the rail.
+  { id: "history", url: "/?freeze=2", wait: 2400, action: "history" },
   // The plain list, forced so it is photographed on every run.
   { id: "flat", url: "/?flat=1&freeze=2", wait: 1200 },
   { id: "dev-gallery", url: "/dev/gallery", wait: 1200 },
@@ -247,6 +254,27 @@ async function perform(page, action, viewport) {
       .first()
       .click();
     await page.waitForTimeout(1600);
+  }
+
+  if (action === "history") {
+    if (!(await selectEvent())) return;
+    const prune = page
+      .getByRole("button", { name: /prune timeline/i })
+      .locator("visible=true")
+      .first();
+    if (await prune.count()) {
+      await prune.click({ force: true });
+      await page.waitForTimeout(500);
+      await page.getByRole("button", { name: /prune it/i }).click({ force: true });
+      await page.waitForTimeout(1600);
+    }
+    if (drawer) await openNav();
+    await page
+      .getByRole("button", { name: /prune\s*history/i })
+      .locator("visible=true")
+      .first()
+      .click();
+    await page.waitForTimeout(700);
   }
 
   if (action === "prune") {

@@ -41,6 +41,7 @@ export default function Panel({
   tone = "brass",
   actions,
   children,
+  fill = false,
   className = "",
   bodyClassName = "",
 }: {
@@ -49,13 +50,21 @@ export default function Panel({
   tone?: Tone;
   actions?: ReactNode;
   children: ReactNode;
+  /**
+   * Take the height its column has going spare and scroll inside. Without it
+   * a short list panel sits at the top of a tall rail and whatever is pinned
+   * under it is marooned at the bottom with a void between.
+   */
+  fill?: boolean;
   className?: string;
   bodyClassName?: string;
 }) {
   const corner = `pointer-events-none absolute h-3 w-3 ${BRACKET[tone]}`;
   return (
     <section
-      className={`relative border bg-hud-green/95 backdrop-blur-[3px] ${FRAME[tone]} ${className}`}
+      className={`relative border bg-hud-green/95 backdrop-blur-[3px] ${FRAME[tone]} ${
+        fill ? "flex min-h-0 flex-1 flex-col" : ""
+      } ${className}`}
     >
       <span className={`${corner} -left-px -top-px border-l-2 border-t-2`} />
       <span className={`${corner} -right-px -top-px border-r-2 border-t-2`} />
@@ -90,7 +99,13 @@ export default function Panel({
         />
       )}
 
-      <div className={`px-4 py-3.5 md:px-5 ${bodyClassName}`}>{children}</div>
+      <div
+        className={`px-4 py-3.5 md:px-5 ${
+          fill ? "ledger-scroll min-h-0 flex-1 overflow-y-auto" : ""
+        } ${bodyClassName}`}
+      >
+        {children}
+      </div>
     </section>
   );
 }

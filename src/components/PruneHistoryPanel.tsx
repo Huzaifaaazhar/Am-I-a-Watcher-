@@ -4,10 +4,19 @@ import Panel from "@/components/ui/Panel";
 import type { LedgerEntry } from "@/lib/types";
 
 /** The record of what the custodian has destroyed, newest first. */
-export default function PruneHistoryPanel({ entries }: { entries: LedgerEntry[] }) {
+export default function PruneHistoryPanel({
+  entries,
+  fill = false,
+}: {
+  entries: LedgerEntry[];
+  /** Stretch to the rail's spare height instead of sitting at the top of it. */
+  fill?: boolean;
+}) {
   const prunes = entries.filter((e) => e.kind === "prune");
   return (
-    <Panel title="Prune History" eyebrow="Custodian ledger" tone="red" className="w-full">
+    <Panel title="Prune History" eyebrow="Custodian ledger" tone="red" fill={fill}
+      className="w-full"
+    >
       {prunes.length === 0 ? (
         <p className="py-2 font-sans text-[12px] text-ash/50">
           Nothing has been pruned. Yet.

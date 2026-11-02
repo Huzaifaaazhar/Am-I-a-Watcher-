@@ -141,9 +141,16 @@ the canvas, generated geometry never is.
   can render a picture - but it stays, because it is the right shape for a screen reader and
   the fastest way to read a 40-event graph.
 
-Mobile is a hero and a dock, not a shrunk desktop: the canvas takes the room above a permanent
-bottom dock, which is the station summary at rest and the event panel once something is chosen.
-The dock's measured height is what the canvas fits itself into, so the two never fight.
+Mobile is a hero and a dock, not a shrunk desktop. The canvas is a fixed-aspect hero -
+`112.6vw`, the height at which the painting fills a full-width canvas at the safe rectangle's
+scale - and the dock is a sibling below it that takes the rest and scrolls. Sizing the canvas
+from whatever the dock left over is what put blurred bands back the moment a view with a short
+dock was photographed.
+
+Nothing is pinned to the bottom of a column with `mt-auto`: on a short laptop that is how the
+ledger ended up alone at the foot of the screen with its last line clipped. A column scrolls
+its content and carries its footer directly under it, and a panel that would otherwise leave a
+void takes `fill`.
 
 Component states: `/dev/gallery`. 404s in production.
 
