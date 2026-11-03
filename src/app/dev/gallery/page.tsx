@@ -268,7 +268,7 @@ export default function GalleryPage() {
               className="w-[260px]"
             >
               <p className="font-sans text-[12px] text-ash/80">
-                Hairline frame, corner brackets, rule under the heading.
+                Rounded gold hairline, rule under the heading, one radius.
               </p>
             </Panel>
           ))}

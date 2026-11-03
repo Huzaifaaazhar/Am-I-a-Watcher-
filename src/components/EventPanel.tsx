@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { Close, Hourglass } from "@/components/icons";
 import Button from "@/components/ui/Button";
 import Panel from "@/components/ui/Panel";
+import Medallion from "@/components/ui/Medallion";
 import type { Branch, TimelineNode } from "@/lib/types";
 import { PRIME_BRANCH_ID } from "@/lib/seed";
 import { LIMITS } from "@/lib/schemas";
@@ -118,13 +119,10 @@ export default function EventPanel({
         </button>
       }
     >
-      <div className="mb-3 flex items-baseline gap-3 font-sans">
-        <span className="text-[26px] font-extrabold leading-none tracking-[0.02em] text-brass tabular-nums md:text-[30px]">
-          {node.year}
-        </span>
-        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-ash/55">
-          {KIND(node)}
-        </span>
+      <div className="mb-2 flex items-baseline gap-2 font-sans text-[11px] font-bold uppercase tracking-[0.18em]">
+        <span className="text-brass tabular-nums">{node.year}</span>
+        <span className="text-brass/40">·</span>
+        <span className="text-ash/55">{KIND(node)}</span>
       </div>
 
       {warning && (
@@ -137,43 +135,29 @@ export default function EventPanel({
         </motion.div>
       )}
 
-      <p className="mb-4 font-sans text-[13px] leading-relaxed text-ash/90">{blurb(node)}</p>
+      <p className="mb-3.5 font-sans text-[12.5px] leading-relaxed text-ash/90">{blurb(node)}</p>
 
-      <Field label="Originates from">
-        <div className="flex items-center gap-2.5">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-brass bg-hud-black">
-            <Hourglass size={15} className="text-brass" />
-          </span>
+      <Field label="Originates from:">
+        <div className="flex items-center gap-3">
+          <Medallion icon={Hourglass} size={40} />
           <span className="min-w-0 font-sans text-[13px] font-bold uppercase leading-tight text-white">
             {onPrime ? "The Sacred Timeline" : branch?.label ?? "Unknown branch"}
           </span>
         </div>
       </Field>
 
-      <div className="mb-4 grid grid-cols-2 gap-px border border-brass/30 bg-brass/25">
-        <div className="bg-hud-black/55 px-3 py-2">
-          <div className="font-sans text-[9px] font-bold uppercase tracking-[0.18em] text-brass/65">
-            Status
-          </div>
-          <div
-            className={`font-sans text-[12px] font-bold uppercase ${
-              onPrime ? "text-weave" : "text-warn"
-            }`}
-          >
-            {onPrime ? "Nominal" : "Deviant"}
-          </div>
-        </div>
-        <div className="bg-hud-black/55 px-3 py-2">
-          <div className="font-sans text-[9px] font-bold uppercase tracking-[0.18em] text-brass/65">
-            Branch events
-          </div>
-          <div className="font-sans text-[12px] font-bold uppercase text-white tabular-nums">
-            {siblingCount}
-          </div>
-        </div>
+      <div className="mb-3 flex items-center gap-2 font-sans text-[10px] font-bold uppercase tracking-[0.16em]">
+        <span className={onPrime ? "text-weave" : "text-warn"}>
+          {onPrime ? "Nominal" : "Deviant"}
+        </span>
+        <span className="text-brass/35">·</span>
+        <span className="text-ash/55">
+          <span className="tabular-nums text-ash/80">{siblingCount}</span> events on this
+          timeline
+        </span>
       </div>
 
-      <div className="mb-3 border border-brass/45 px-3.5 py-3">
+      <div className="mb-3 rounded-md border border-brass/45 px-3.5 py-3">
         <div className="mb-2.5 font-sans text-[11px] font-bold uppercase tracking-[0.16em] text-brass">
           Change historical event
         </div>
@@ -190,7 +174,7 @@ export default function EventPanel({
           maxLength={LIMITS.maxTitle}
           onChange={(e) => setTitle(e.target.value)}
           disabled={disabled}
-          className="mb-2.5 w-full border border-brass/40 bg-hud-black/50 px-2 py-1.5 font-sans text-[13px] text-white outline-none transition-colors focus:border-brass disabled:opacity-50"
+          className="mb-2.5 w-full rounded-md border border-brass/40 bg-hud-black/50 px-2.5 py-1.5 font-sans text-[13px] text-white outline-none transition-colors focus:border-brass disabled:opacity-50"
         />
 
         <div className="flex justify-end">
@@ -213,7 +197,7 @@ export default function EventPanel({
         part of the rewrite - so Branch New Timeline looked permanently dead
         and nothing in the panel said what would wake it.
       */}
-      <div className="mb-2.5 border border-pill-blue/50 bg-pill-blue/[0.07] px-3.5 py-3">
+      <div className="mb-2.5 rounded-md border border-pill-blue/50 bg-pill-blue/[0.07] px-3.5 py-3">
         <div className="mb-2 font-sans text-[11px] font-bold uppercase tracking-[0.16em] text-brass">
           Branch a new timeline
         </div>

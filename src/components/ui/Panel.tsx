@@ -5,11 +5,13 @@ import type { ReactNode } from "react";
 /**
  * The one panel chrome in the interface.
  *
- * Every surface in the references is the same object: a dark translucent
- * ground, a hairline gold frame, a rule under the heading and a bracket
- * notched into each corner. Building that once means a new panel cannot
- * quietly invent its own border weight - which is how an interface stops
- * reading as one system.
+ * A dark translucent ground inside a rounded gold hairline, with a rule under
+ * the heading. It used to be a hard rectangle with a bracket notched into
+ * each corner; the reference the owner supplied is a rounded frame, and
+ * brackets on a radiused corner read as a mistake rather than as a detail.
+ *
+ * Building it once means a new panel cannot quietly invent its own border
+ * weight or radius - which is how an interface stops reading as one system.
  *
  * `tone` only moves the accent. Red is for a destructive surface and amber
  * for a deviation; everything else is brass.
@@ -23,10 +25,10 @@ const FRAME: Record<Tone, string> = {
   warn: "border-warn/80",
 };
 
-const BRACKET: Record<Tone, string> = {
-  brass: "border-brass",
-  red: "border-pill-red",
-  warn: "border-warn",
+const RULE: Record<Tone, string> = {
+  brass: "bg-brass/55",
+  red: "bg-pill-red/55",
+  warn: "bg-warn/55",
 };
 
 const HEADING: Record<Tone, string> = {
@@ -59,29 +61,23 @@ export default function Panel({
   className?: string;
   bodyClassName?: string;
 }) {
-  const corner = `pointer-events-none absolute h-3 w-3 ${BRACKET[tone]}`;
   return (
     <section
-      className={`relative border bg-hud-green/95 backdrop-blur-[3px] ${FRAME[tone]} ${
-        fill ? "flex min-h-0 flex-1 flex-col" : ""
-      } ${className}`}
+      className={`relative rounded-lg border bg-hud-green/95 shadow-[0_10px_30px_-18px_rgba(0,0,0,0.9)] backdrop-blur-[3px] ${
+        FRAME[tone]
+      } ${fill ? "flex min-h-0 flex-1 flex-col" : ""} ${className}`}
     >
-      <span className={`${corner} -left-px -top-px border-l-2 border-t-2`} />
-      <span className={`${corner} -right-px -top-px border-r-2 border-t-2`} />
-      <span className={`${corner} -bottom-px -left-px border-b-2 border-l-2`} />
-      <span className={`${corner} -bottom-px -right-px border-b-2 border-r-2`} />
-
       {(title || actions) && (
-        <header className="flex items-start justify-between gap-2 px-4 pb-2.5 pt-3.5 md:px-5">
+        <header className="flex items-start justify-between gap-2 px-4 pb-2 pt-3.5 md:px-5">
           <div className="min-w-0">
             {eyebrow && (
-              <div className="mb-1 font-sans text-[10px] font-bold uppercase tracking-[0.22em] text-brass/70">
+              <div className="mb-0.5 font-sans text-[10px] font-bold uppercase tracking-[0.22em] text-brass/65">
                 {eyebrow}
               </div>
             )}
             {title && (
               <h2
-                className={`line-clamp-2 font-sans text-[17px] font-extrabold uppercase leading-tight tracking-[0.03em] md:text-[19px] ${HEADING[tone]}`}
+                className={`line-clamp-2 font-sans text-[19px] font-extrabold uppercase leading-[1.08] tracking-[0.02em] md:text-[21px] ${HEADING[tone]}`}
               >
                 {title}
               </h2>
@@ -91,16 +87,10 @@ export default function Panel({
         </header>
       )}
 
-      {title && (
-        <div
-          className={`mx-4 h-px md:mx-5 ${
-            tone === "brass" ? "bg-brass/60" : tone === "red" ? "bg-pill-red/60" : "bg-warn/60"
-          }`}
-        />
-      )}
+      {title && <div className={`mx-4 h-px md:mx-5 ${RULE[tone]}`} />}
 
       <div
-        className={`px-4 py-3.5 md:px-5 ${
+        className={`px-4 py-3 md:px-5 ${
           fill ? "ledger-scroll min-h-0 flex-1 overflow-y-auto" : ""
         } ${bodyClassName}`}
       >

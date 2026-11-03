@@ -80,8 +80,15 @@ Actions: `src/components/ui/Button` — never hand-roll a button's states again.
 Avoid AI tells: accent-coloured random word in every headline, an eyebrow over every section,
 `→` on every button.
 
-Panels: `src/components/ui/Panel` is the only panel chrome - hairline gold frame, corner
-brackets, rule under the heading. Never hand-roll a bordered surface.
+Panels: `src/components/ui/Panel` is the only panel chrome - rounded gold hairline (`rounded-lg`),
+a rule under the heading, one radius. Inner field boxes and inputs take `rounded-md`, action
+pills stay `rounded-full`. Never hand-roll a bordered surface, and never mix radii: the corner
+brackets this used to carry were dropped because a bracket on a radiused corner reads as a
+mistake rather than as a detail.
+
+The gold disc with a glyph cut out of it (`src/components/ui/Medallion`) is how the interface
+says "issued by an authority" - the origin marker, the profile pip, the custodian's mark. A thin
+ring around a hairline icon on a dark fill reads as a disabled button at any size under 48px.
 
 Tailwind's opacity modifiers only accept the values in the default scale. `bg-hud-green/92`
 compiles to nothing at all, and the surface renders fully transparent. Use multiples of five.

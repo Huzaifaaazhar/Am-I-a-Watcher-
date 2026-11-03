@@ -35,9 +35,19 @@ const BASE =
   "relative inline-flex items-center justify-center gap-2 rounded-full border font-sans font-extrabold uppercase tracking-[0.05em] transition-colors " +
   "disabled:cursor-not-allowed disabled:opacity-45";
 
+/*
+ * The two action pills carry a light inner border and a soft drop, which is
+ * what makes them read as struck objects sitting on the panel rather than as
+ * flat colour fills. The brass hairline they used to wear instead tied them
+ * to the frame and left them looking printed on it.
+ */
 const VARIANTS: Record<ButtonVariant, string> = {
-  commit: "border-brass/40 bg-pill-blue text-white hover:bg-pill-blueDark",
-  danger: "border-brass/40 bg-pill-red text-white hover:bg-pill-redDark",
+  commit:
+    "border-white/25 bg-pill-blue text-white shadow-[0_3px_10px_-4px_rgba(0,0,0,0.8)] " +
+    "hover:bg-pill-blueDark",
+  danger:
+    "border-white/25 bg-pill-red text-white shadow-[0_3px_10px_-4px_rgba(0,0,0,0.8)] " +
+    "hover:bg-pill-redDark",
   quiet:
     "border-2 border-brass bg-transparent text-brass hover:bg-brass hover:text-hud-black " +
     "disabled:hover:bg-transparent disabled:hover:text-brass",

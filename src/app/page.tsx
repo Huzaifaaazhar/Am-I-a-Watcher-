@@ -572,10 +572,17 @@ function Custodian({ initial }: { initial: Timeline }) {
                 />
               )}
             </div>
-            {/* The foot of the rail, not the foot of the screen: pinned with
-                mt-auto it stranded itself below a 440px void on a short
-                laptop, and clipped its last line against the bottom edge. */}
-            <LedgerStrip entries={timeline.ledger} />
+            {/*
+              The foot of the rail, not the foot of the screen: pinned with
+              mt-auto it stranded itself below a 440px void on a short laptop
+              and clipped its last line against the bottom edge.
+
+              It stands down while an event is open. The ledger is there to
+              use the rail's spare height, and with a panel in the rail there
+              is none - it was pushing the branch and prune actions off the
+              bottom of a 768px screen.
+            */}
+            {!selected && <LedgerStrip entries={timeline.ledger} />}
           </aside>
         )}
       </div>

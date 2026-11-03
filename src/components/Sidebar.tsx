@@ -30,6 +30,10 @@ const NAV: Array<{ key: View; label: string }> = [
  * read as three separately positioned buttons; now one fixed height, one
  * padding, one border weight, one gap, and the labels are centred in it.
  *
+ * The gold rail down its right edge is the same line the diagonal notch at
+ * the top runs into, and it is what frames the canvas rather than leaving the
+ * painting to start against bare green.
+ *
  * Below `lg` it is an off-canvas drawer. It used to dock at `md`, but at 768
  * a docked rail plus the event panel left the canvas a 168px strip - the
  * tree, which is the entire point of the screen, became a sliver.
@@ -47,7 +51,7 @@ export default function Sidebar({ view, onSelect, stats, open, onClose }: Props)
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-[244px] flex-col bg-hud-green pl-safe-l pt-safe-t shadow-[8px_0_32px_-12px_rgba(0,0,0,0.8)] transition-transform duration-300 ease-out lg:relative lg:z-30 lg:w-[228px] lg:translate-x-0 lg:pt-0 lg:shadow-none xl:w-[252px] 2xl:w-[292px] ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-[244px] flex-col bg-hud-green pl-safe-l pt-safe-t shadow-[8px_0_32px_-12px_rgba(0,0,0,0.8)] transition-transform duration-300 ease-out lg:relative lg:z-30 lg:w-[228px] lg:translate-x-0 lg:border-r-2 lg:border-brass/60 lg:pt-0 lg:shadow-none xl:w-[252px] 2xl:w-[292px] ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -129,21 +133,25 @@ export default function Sidebar({ view, onSelect, stats, open, onClose }: Props)
         */}
         <div className="relative mt-auto flex flex-col items-center gap-3 px-4 pb-[calc(2.25rem+var(--safe-bottom))] pt-8">
           <span className="h-px w-16 bg-brass/30" />
-          <div className="rounded-full border-[3px] border-brass bg-brass p-[3px]">
-            <div className="rounded-full bg-hud-black p-2.5 2xl:p-3.5">
-              <HornBadge
-                size={62}
-                className="2xl:hidden"
-                ringClassName="text-brass"
-                fillClassName="text-hud-black"
-              />
-              <HornBadge
-                size={78}
-                className="hidden 2xl:block"
-                ringClassName="text-brass"
-                fillClassName="text-hud-black"
-              />
-            </div>
+          {/*
+            A struck disc: solid brass with the silhouette cut out of it, and
+            a darker ring inside the rim. It was a thin gold outline on a
+            near-black fill, which at this size read as an empty slot.
+          */}
+          <div className="relative flex h-[84px] w-[84px] items-center justify-center rounded-full bg-brass shadow-[0_4px_14px_-6px_rgba(0,0,0,0.9)] 2xl:h-[96px] 2xl:w-[96px]">
+            <span className="absolute inset-[7px] rounded-full border border-hud-black/40" />
+            <HornBadge
+              size={54}
+              className="2xl:hidden"
+              ringClassName="text-hud-black"
+              fillClassName="text-brass"
+            />
+            <HornBadge
+              size={62}
+              className="hidden 2xl:block"
+              ringClassName="text-hud-black"
+              fillClassName="text-brass"
+            />
           </div>
           <span className="font-sans text-[10px] font-bold uppercase tracking-[0.24em] text-brass/60">
             Custodian

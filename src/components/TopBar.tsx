@@ -32,10 +32,9 @@ export default function TopBar({ onToggleNav }: { onToggleNav: () => void }) {
         <span className="hidden font-sans text-[13px] font-semibold uppercase tracking-[0.18em] text-brass sm:inline xl:text-[15px]">
           Profile
         </span>
-        <div className="rounded-full border-2 border-brass bg-brass p-[2px] md:p-[3px]">
-          <div className="rounded-full bg-hud-black p-1.5 md:p-2">
-            <HornBadge size={26} ringClassName="text-brass" fillClassName="text-hud-black" />
-          </div>
+        <div className="relative flex h-10 w-10 items-center justify-center rounded-full bg-brass shadow-[0_2px_8px_-3px_rgba(0,0,0,0.8)] md:h-11 md:w-11">
+          <span className="absolute inset-[3px] rounded-full border border-hud-black/40" />
+          <HornBadge size={26} ringClassName="text-hud-black" fillClassName="text-brass" />
         </div>
       </div>
     </header>

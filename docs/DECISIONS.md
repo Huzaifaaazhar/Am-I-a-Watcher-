@@ -395,3 +395,27 @@ The archive is the subject now: every event is on the tree.
 - **The strand is named in the panel, not coloured on the canvas.** A second marker colour would
   need a legend, and the painting is the subject. The word beside the year says which archive
   an event came from.
+
+## Phase 9 - panel detailing
+
+The owner supplied a new reference of the event panel. Ours had the same content and none of
+the craft; these are the differences, closed.
+
+- **The panel frame is rounded now, and the corner brackets are gone.** A bracket notched into
+  a radiused corner reads as a mistake rather than as a detail. One radius through the system:
+  `rounded-lg` on panels, `rounded-md` on field boxes and inputs, `rounded-full` on action
+  pills.
+- **`ui/Medallion`: a struck gold disc with the glyph cut out of it**, a darker ring inside the
+  rim. The origin marker was a thin gold ring around a hairline icon on a near-black fill,
+  which at 32px read as a disabled button. The same treatment carries the profile pip and the
+  custodian's mark, which were the same shape inverted.
+- **The action pills wear a light inner border and a soft drop** instead of a brass hairline.
+  The hairline tied them to the frame and left them looking printed on it; these read as struck
+  objects sitting on the panel.
+- **A gold rail down the sidebar's right edge**, continuous with the diagonal notch at the top.
+  It frames the canvas instead of letting the painting start against bare green.
+- **The panel was compacted to reach its own actions.** A 30px year display and a two-cell
+  status grid cost about 110px between them and pushed Branch and Prune off the bottom of a
+  768px screen; both are one line now.
+- **The ledger stands down while an event is open.** It exists to use the rail's spare height,
+  and with a panel in the rail there is none.
