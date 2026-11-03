@@ -74,27 +74,34 @@ function cubicD([p0, p1, p2, p3]: Cubic): string {
  *
  * `o` is where the bough leaves the trunk and `t` where it ends; `bow` lifts
  * its middle off the straight line between them, which is what makes it a
- * branch rather than a spoke - positive bows upward on screen. `at` is how
- * far along the bough its event sits, varied so the markers do not all land
- * on the same radius and read as a dial.
+ * branch rather than a spoke - positive bows upward on screen.
  *
- * Written oldest-first: events are handed out in year order, so the sequence
- * here is also the order time moves through the tree - out along the roots,
- * then up and alternating across the canopy. Alternating sides is deliberate.
- * Walking up one side and down the other puts every marker on one edge.
+ * Written oldest-first: the sorted events are dealt out across the table in
+ * order, so the sequence here is also the order time moves through the tree -
+ * out along the roots, then up and alternating across the canopy. Alternating
+ * sides is deliberate: walking up one side and down the other puts every
+ * marker on one edge of the painting.
+ *
+ * Each bough carries a run of consecutive years rather than a single event.
+ * With the whole archive on the tree there are too many for one each, and a
+ * bough strung with five is what a branch hung with lights looks like.
  */
-const BOUGHS: Array<{ o: Pt; t: Pt; bow: number; at: number }> = [
-  { o: { x: 537, y: 486 }, t: { x: 712, y: 492 }, bow: 46, at: 0.76 },
-  { o: { x: 533, y: 474 }, t: { x: 344, y: 498 }, bow: 42, at: 0.74 },
-  { o: { x: 534, y: 430 }, t: { x: 742, y: 408 }, bow: 44, at: 0.78 },
-  { o: { x: 531, y: 436 }, t: { x: 322, y: 428 }, bow: 50, at: 0.66 },
-  { o: { x: 529, y: 384 }, t: { x: 300, y: 312 }, bow: 40, at: 0.76 },
-  { o: { x: 531, y: 376 }, t: { x: 736, y: 300 }, bow: 36, at: 0.68 },
-  { o: { x: 526, y: 334 }, t: { x: 344, y: 196 }, bow: 34, at: 0.72 },
-  { o: { x: 527, y: 328 }, t: { x: 706, y: 182 }, bow: 30, at: 0.8 },
-  { o: { x: 523, y: 296 }, t: { x: 430, y: 92 }, bow: 22, at: 0.7 },
-  { o: { x: 524, y: 290 }, t: { x: 632, y: 86 }, bow: 20, at: 0.76 },
-  { o: { x: 522, y: 278 }, t: { x: 540, y: 64 }, bow: 16, at: 0.72 },
+const BOUGHS: Array<{ o: Pt; t: Pt; bow: number }> = [
+  { o: { x: 539, y: 498 }, t: { x: 676, y: 512 }, bow: 38 },
+  { o: { x: 535, y: 488 }, t: { x: 338, y: 508 }, bow: 36 },
+  { o: { x: 537, y: 460 }, t: { x: 724, y: 472 }, bow: 44 },
+  { o: { x: 533, y: 452 }, t: { x: 302, y: 466 }, bow: 42 },
+  { o: { x: 535, y: 424 }, t: { x: 748, y: 416 }, bow: 44 },
+  { o: { x: 531, y: 418 }, t: { x: 294, y: 422 }, bow: 44 },
+  { o: { x: 530, y: 388 }, t: { x: 734, y: 352 }, bow: 38 },
+  { o: { x: 528, y: 382 }, t: { x: 290, y: 342 }, bow: 38 },
+  { o: { x: 528, y: 352 }, t: { x: 710, y: 278 }, bow: 34 },
+  { o: { x: 526, y: 346 }, t: { x: 312, y: 262 }, bow: 34 },
+  { o: { x: 525, y: 320 }, t: { x: 668, y: 196 }, bow: 28 },
+  { o: { x: 524, y: 314 }, t: { x: 356, y: 180 }, bow: 28 },
+  { o: { x: 523, y: 292 }, t: { x: 606, y: 104 }, bow: 22 },
+  { o: { x: 522, y: 286 }, t: { x: 428, y: 96 }, bow: 22 },
+  { o: { x: 521, y: 274 }, t: { x: 520, y: 86 }, bow: 14 },
 ];
 
 export const BOUGH_COUNT = BOUGHS.length;
@@ -119,8 +126,8 @@ function boughCurve(i: number): Cubic {
 /* ------------------------------------------------------------------- plan */
 
 export interface BoughPlan {
-  /** The event this bough carries, so hovering the limb selects the event. */
-  nodeId: string;
+  /** Every event strung along it, so it can light when any of them is live. */
+  nodeIds: string[];
   d: string;
 }
 
@@ -151,6 +158,9 @@ export interface TreePlan {
 /** Nodes are set in from a limb's ends so the first is clear of the fork. */
 const LIMB_FROM = 0.34;
 const LIMB_TO = 0.96;
+/** The same, along a bough. Wider, because a bough carries more of them. */
+const BOUGH_FROM = 0.3;
+const BOUGH_TO = 0.96;
 
 /**
  * The curve a deviation grows, leaving the event that caused it.
@@ -206,21 +216,44 @@ export function planTree(timeline: Timeline): TreePlan {
   const heading = new Map<string, Pt>();
 
   const prime = byBranch.get(PRIME_BRANCH_ID) ?? [];
-  prime.forEach((node, i) => {
-    const curve = boughCurve(i);
-    const at = BOUGHS[i % BOUGHS.length].at;
-    const point = cubicAt(curve, at);
-    const plan: NodePlan = {
-      node,
-      point,
-      side: point.x >= 520 ? 1 : -1,
-      branchId: PRIME_BRANCH_ID,
-    };
-    nodes.push(plan);
-    byNode.set(node.id, plan);
-    heading.set(node.id, cubicTangent(curve, at));
-    boughs.push({ nodeId: node.id, d: cubicD(curve) });
-  });
+
+  // Deal the sorted run across the boughs: contiguous chunks, as even as the
+  // count allows, so each bough carries consecutive years and time still
+  // moves outward and up through the tree.
+  const perBough = Math.ceil(prime.length / BOUGHS.length) || 1;
+  for (let b = 0; b < BOUGHS.length; b++) {
+    const members = prime.slice(b * perBough, (b + 1) * perBough);
+    if (members.length === 0) break;
+
+    const curve = boughCurve(b);
+    const ids: string[] = [];
+
+    members.forEach((node, i) => {
+      const u =
+        members.length === 1
+          ? 0.72
+          : BOUGH_FROM + (i / (members.length - 1)) * (BOUGH_TO - BOUGH_FROM);
+      const point = cubicAt(curve, u);
+      const tangent = cubicTangent(curve, u);
+      // A hair off the curve, alternating, so a run of markers reads as
+      // grown along a branch rather than as beads threaded on a wire.
+      const off = (i % 2 === 0 ? 1 : -1) * 4;
+      const placed = { x: point.x - tangent.y * off, y: point.y + tangent.x * off };
+
+      const plan: NodePlan = {
+        node,
+        point: placed,
+        side: placed.x >= 520 ? 1 : -1,
+        branchId: PRIME_BRANCH_ID,
+      };
+      nodes.push(plan);
+      byNode.set(node.id, plan);
+      heading.set(node.id, tangent);
+      ids.push(node.id);
+    });
+
+    boughs.push({ nodeIds: ids, d: cubicD(curve) });
+  }
 
   const branches = timeline.branches
     .filter((b): b is Branch => b.status === "alive" && b.id !== PRIME_BRANCH_ID)

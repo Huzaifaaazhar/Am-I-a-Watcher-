@@ -46,6 +46,19 @@ const BUSY = {
   prune: "Composing epitaph",
 } as const;
 
+/**
+ * The small word beside the year. For a seeded event it names the strand it
+ * came from - recorded history, the saga, or whatever the archive let
+ * through - which is the only place in the interface those are told apart.
+ */
+function KIND(node: TimelineNode): string {
+  if (node.origin === "rewritten") return "Rewritten";
+  if (node.origin === "generated") return "Consequent";
+  if (node.strand === "saga") return "Saga record";
+  if (node.strand === "anomaly") return "Anomaly";
+  return "Recorded";
+}
+
 const blurb = (node: TimelineNode) =>
   node.consequence ||
   `${node.title} is woven into the history of the Sacred Timeline. The Time-Variance ` +
@@ -110,7 +123,7 @@ export default function EventPanel({
           {node.year}
         </span>
         <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-ash/55">
-          {node.origin === "rewritten" ? "Rewritten" : node.origin === "generated" ? "Consequent" : "Recorded"}
+          {KIND(node)}
         </span>
       </div>
 

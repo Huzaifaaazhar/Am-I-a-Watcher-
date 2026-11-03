@@ -362,3 +362,36 @@ a premise is typed, and nothing on the screen said so.
   the field looked answered when it was empty.
 - The behaviour is unchanged: the engine needs a what-if to compute a cascade, and branching
   on an empty premise would produce a universe about nothing.
+
+## Phase 8 - the whole archive
+
+The seed used to shuffle two small pools and show nine events, so no two visits looked alike.
+The archive is the subject now: every event is on the tree.
+
+- **Three strands, one sequence.** Recorded history (wars included), the saga this project is a
+  homage to, and the anomalies the archive let through - 74 events, interleaved by year. That
+  interleaving is the joke: the TVA files a world war and a unionised pigeon on the same bough
+  in the same hand.
+- **The saga strand is text only**, written in this app's own voice, using in-universe years so
+  it files correctly beside recorded history. No official logo, title font or film asset is
+  reproduced anywhere in this project, and that has not changed.
+- **Atrocity-specific events are deliberately absent.** The Holocaust, Hiroshima and 9/11 are
+  not on a tree where the next marker along is a cat being appointed harbourmaster and the verb
+  on offer is "prune". The wars themselves are there - their beginnings, their ends, Waterloo,
+  Normandy - because those are the what-ifs the piece is about.
+- **A bough carries a run of years, not one event.** With the whole archive on the tree there
+  are far too many for one each; the sorted events are dealt across fifteen boughs in
+  contiguous chunks, so each bough is a span of consecutive years and time still moves outward
+  and up through the tree.
+- **Markers sit a hair off their bough, alternating.** Dead on the curve, five in a row read as
+  beads threaded on a wire rather than as growth along a branch.
+- **The per-bough hit path is gone.** It selected "the first event on this bough", which meant
+  nothing once a bough carried five, and a 30-unit invisible band across the canvas was
+  competing with the markers it was meant to help you reach. Deviation limbs keep theirs: a
+  limb still maps to exactly one branch.
+- **The marker hit radius is capped at half the gap between neighbours** (15 art units). Wider
+  and the circles overlap, which makes a neighbour unreachable. On a phone that is about a 24px
+  target - tight, and the reason `?flat=1` earns its place twice over now.
+- **The strand is named in the panel, not coloured on the canvas.** A second marker colour would
+  need a legend, and the painting is the subject. The word beside the year says which archive
+  an event came from.

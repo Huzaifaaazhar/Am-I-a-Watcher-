@@ -9,6 +9,13 @@ export type NodeStatus =
 
 export type NodeOrigin = "seed" | "generated" | "rewritten";
 
+/**
+ * Which strand of the archive a seeded event belongs to. Only the canvas's
+ * own copy reads it - the geometry and the engine treat all three alike,
+ * because on the Sacred Timeline there is only one sequence.
+ */
+export type NodeStrand = "recorded" | "saga" | "anomaly";
+
 export interface TimelineNode {
   id: string;
   parentId: string | null;
@@ -19,6 +26,8 @@ export interface TimelineNode {
   consequence?: string;
   status: NodeStatus;
   origin: NodeOrigin;
+  /** Set on seeded events only. */
+  strand?: NodeStrand;
   /** ms timestamp used to stagger growth animations. */
   bornAt: number;
 }

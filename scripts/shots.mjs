@@ -356,10 +356,21 @@ async function main() {
            * came back clean - the regression was only visible to a human
            * opening a PNG. This makes it fail loudly instead.
            */
-          const tokens = await page.evaluate(() => {
-            const style = getComputedStyle(document.documentElement);
+          const tokens = await page.evaluate(async () => {
             const required = ["--brass", "--hud-green", "--ash", "--void", "--safe-bottom"];
-            return required.filter((name) => !style.getPropertyValue(name).trim());
+            const missing = () => {
+              const style = getComputedStyle(document.documentElement);
+              return required.filter((name) => !style.getPropertyValue(name).trim());
+            };
+            // Polled, not sampled once: the dev server injects its stylesheet
+            // after first paint, so a single read caught two routes mid-load
+            // and reported a palette failure that the PNGs disproved. A check
+            // that cries wolf is worse than no check - this one only fails
+            // when the tokens are still missing a second later.
+            for (let i = 0; i < 10 && missing().length; i++) {
+              await new Promise((r) => setTimeout(r, 100));
+            }
+            return missing();
           });
           if (tokens.length) {
             problems.push(

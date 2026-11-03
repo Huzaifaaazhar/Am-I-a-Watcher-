@@ -129,6 +129,7 @@ the canvas, generated geometry never is.
 | First load JS (`/`) | < 200 KB | < 200 KB |
 | Shipped art | < 200 KB | < 60 KB (the 1k plate) |
 | Animated SVG nodes | < 120 | < 120 |
+| Markers on the canvas | the whole archive | the whole archive |
 | LCP over 4G | < 2.5 s | < 2.5 s |
 
 - **No `requestAnimationFrame` for the tree.** The overlay animates on the compositor; the one
@@ -151,6 +152,11 @@ Nothing is pinned to the bottom of a column with `mt-auto`: on a short laptop th
 ledger ended up alone at the foot of the screen with its last line clipped. A column scrolls
 its content and carries its footer directly under it, and a panel that would otherwise leave a
 void takes `fill`.
+
+The seed is the whole archive, not a sample: three strands (recorded history, the saga,
+anomalies) interleaved by year in `src/lib/seed.ts`, all of them on the tree. A bough therefore
+carries a run of consecutive years rather than one event, and the marker hit radius is capped at
+half the gap between neighbours - wider and a neighbour becomes unreachable.
 
 Component states: `/dev/gallery`. 404s in production.
 

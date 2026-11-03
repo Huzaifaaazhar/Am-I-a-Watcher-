@@ -44,9 +44,13 @@ interface Props {
 }
 
 /** Hit stroke width in art units - roughly a 40px target at desktop scale. */
-const HIT_BOUGH = 30;
-/** Radius of a marker's hit circle. Generous: the dot itself is 3.4. */
-const HIT_MARKER = 18;
+const HIT_LIMB = 30;
+/**
+ * Radius of a marker's hit circle. Generous against the 3.8-unit dot, but no
+ * wider than half the gap between two markers on the same bough - past that
+ * the circles overlap and a neighbour becomes unreachable.
+ */
+const HIT_MARKER = 15;
 
 /** How far a label is thrown clear of its marker, in art units. */
 const LABEL_REACH = 22;
@@ -233,8 +237,8 @@ export default function WorldTree({
           */}
           <g style={{ mixBlendMode: "screen" }}>
             {plan.boughs.map((bough) =>
-              lit(bough.nodeId) ? (
-                <g key={bough.nodeId}>
+              bough.nodeIds.some(lit) ? (
+                <g key={bough.nodeIds[0]}>
                   <path
                     d={bough.d}
                     fill="none"
@@ -367,7 +371,7 @@ export default function WorldTree({
                   <circle
                     cx={n.point.x}
                     cy={n.point.y}
-                    r={active ? 4.8 : 3.8}
+                    r={active ? 4.6 : 3.1}
                     fill={
                       dying
                         ? "#B03A2E"
@@ -380,7 +384,7 @@ export default function WorldTree({
                     stroke="#06331F"
                     strokeWidth="0.9"
                     className="transition-all duration-200"
-                    style={{ opacity: active ? 1 : 0.92 }}
+                    style={{ opacity: active ? 1 : 0.78 }}
                   />
                 </g>
               );
@@ -392,29 +396,12 @@ export default function WorldTree({
             Drawn last so they sit above every painted path, and kept to the
             stroke only: `pointer-events: stroke` responds to the stroke area
             whatever its paint, which is what lets an invisible 30-unit band
-            catch a tap aimed at a 2-unit branch. The marker circles come
-            after the boughs so a dot always wins over the limb beneath it.
+            catch a tap aimed at a 2-unit limb. Only deviation limbs get one:
+            a Sacred Timeline bough carries a run of events, so there is no
+            single event a tap on the band could mean, and the markers
+            themselves are the targets.
           */}
           <g>
-            {plan.boughs.map((bough) => {
-              const target = plan.byNode.get(bough.nodeId);
-              if (!target) return null;
-              return (
-                <path
-                  key={`hit-${bough.nodeId}`}
-                  d={bough.d}
-                  fill="none"
-                  stroke="transparent"
-                  strokeWidth={HIT_BOUGH}
-                  strokeLinecap="round"
-                  pointerEvents="stroke"
-                  className="cursor-pointer focus:outline-none"
-                  onClick={() => onSelect(bough.nodeId)}
-                  onPointerEnter={() => onHover(bough.nodeId)}
-                />
-              );
-            })}
-
             {plan.limbs.map((limb) => {
               const first = plan.nodes.find((n) => n.branchId === limb.branchId);
               if (!first) return null;
@@ -424,7 +411,7 @@ export default function WorldTree({
                   d={limb.d}
                   fill="none"
                   stroke="transparent"
-                  strokeWidth={HIT_BOUGH}
+                  strokeWidth={HIT_LIMB}
                   strokeLinecap="round"
                   pointerEvents="stroke"
                   className="cursor-pointer focus:outline-none"
