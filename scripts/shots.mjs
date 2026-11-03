@@ -243,7 +243,7 @@ async function perform(page, action, viewport) {
     // hidden duplicate used to sit earlier in the document and `.first()`
     // picked it, so the fill waited on a control nobody could type into.
     const premise = page
-      .getByLabel(/description of the change/i)
+      .getByLabel(/what happens instead/i)
       .locator("visible=true")
       .first();
     if (!(await premise.count())) return;

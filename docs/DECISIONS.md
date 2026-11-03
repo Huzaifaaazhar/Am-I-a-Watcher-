@@ -345,3 +345,20 @@ took thirteen per cent of the window.
   the canvas what was covered is gone entirely.
 - **Labels are clamped to the canvas vertically too.** A marker on the lowest bough put its pill
   half under the rail's top border.
+
+## Phase 7c - the branch button that looked broken
+
+Reported as "Branch New Timeline is never clickable". It was not broken: it is disabled until
+a premise is typed, and nothing on the screen said so.
+
+- **The premise moved out of the edit box and into the action it arms.** It sat under "Event
+  name" next to a Save button, inside a box headed "Change historical event", so it read as
+  part of the rewrite. The branch now has its own blue-bordered block: heading, the required
+  field, and its button directly beneath.
+- **The disabled button states its reason** where the button is - "Describe the change above
+  and this becomes available" - wired to the field with `aria-describedby`.
+- **The field is labelled "What happens instead?" with a required mark**, and the placeholder
+  is italic. The old placeholder was upright grey body text that read as a filled-in value, so
+  the field looked answered when it was empty.
+- The behaviour is unchanged: the engine needs a what-if to compute a cascade, and branching
+  on an empty premise would produce a universe about nothing.

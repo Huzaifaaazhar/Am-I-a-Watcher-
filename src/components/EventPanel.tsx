@@ -160,7 +160,7 @@ export default function EventPanel({
         </div>
       </div>
 
-      <div className="mb-4 border border-brass/45 px-3.5 py-3">
+      <div className="mb-3 border border-brass/45 px-3.5 py-3">
         <div className="mb-2.5 font-sans text-[11px] font-bold uppercase tracking-[0.16em] text-brass">
           Change historical event
         </div>
@@ -180,22 +180,6 @@ export default function EventPanel({
           className="mb-2.5 w-full border border-brass/40 bg-hud-black/50 px-2 py-1.5 font-sans text-[13px] text-white outline-none transition-colors focus:border-brass disabled:opacity-50"
         />
 
-        <label
-          htmlFor={`${ids}-premise`}
-          className="block font-sans text-[10px] uppercase tracking-[0.14em] text-ash/60"
-        >
-          Description of the change
-        </label>
-        <input
-          id={`${ids}-premise`}
-          value={premise}
-          maxLength={LIMITS.maxInput}
-          placeholder="the printing press was never invented"
-          onChange={(e) => setPremise(e.target.value)}
-          disabled={disabled}
-          className="mb-2.5 w-full border-0 border-b border-brass/35 bg-transparent py-1 font-sans text-[13px] text-white outline-none transition-colors placeholder:text-ash/30 focus:border-brass disabled:opacity-50"
-        />
-
         <div className="flex justify-end">
           <Button
             variant="quiet"
@@ -210,25 +194,67 @@ export default function EventPanel({
         </div>
       </div>
 
-      <motion.div
-        animate={
-          warning
-            ? { boxShadow: ["0 0 0 0 rgba(232,195,74,0.7)", "0 0 0 12px rgba(232,195,74,0)"] }
-            : undefined
-        }
-        transition={warning ? { duration: 1.6, repeat: Infinity } : undefined}
-        className="mb-2.5 rounded-full"
-      >
-        <Button
-          variant="commit"
-          disabled={disabled || !canBranch}
-          loading={busy === BUSY.branch}
-          loadingLabel="Branching"
-          onClick={() => onBranch(premise.trim())}
+      {/*
+        The premise lives with the action it arms, not in the edit box above.
+        It used to sit under "Event name" beside a Save button, which read as
+        part of the rewrite - so Branch New Timeline looked permanently dead
+        and nothing in the panel said what would wake it.
+      */}
+      <div className="mb-2.5 border border-pill-blue/50 bg-pill-blue/[0.07] px-3.5 py-3">
+        <div className="mb-2 font-sans text-[11px] font-bold uppercase tracking-[0.16em] text-brass">
+          Branch a new timeline
+        </div>
+
+        <label
+          htmlFor={`${ids}-premise`}
+          className="block font-sans text-[10px] uppercase tracking-[0.14em] text-ash/60"
         >
-          Branch New Timeline
-        </Button>
-      </motion.div>
+          What happens instead?{" "}
+          <span className="text-pill-blue" aria-hidden>
+            *
+          </span>
+        </label>
+        <input
+          id={`${ids}-premise`}
+          value={premise}
+          maxLength={LIMITS.maxInput}
+          placeholder="Napoleon wins at Waterloo"
+          onChange={(e) => setPremise(e.target.value)}
+          disabled={disabled}
+          aria-describedby={canBranch ? undefined : `${ids}-why`}
+          className="mb-3 w-full border-0 border-b border-brass/35 bg-transparent py-1 font-sans text-[13px] text-white outline-none transition-colors placeholder:italic placeholder:text-ash/30 focus:border-brass disabled:opacity-50"
+        />
+
+        <motion.div
+          animate={
+            warning
+              ? { boxShadow: ["0 0 0 0 rgba(232,195,74,0.7)", "0 0 0 12px rgba(232,195,74,0)"] }
+              : undefined
+          }
+          transition={warning ? { duration: 1.6, repeat: Infinity } : undefined}
+          className="rounded-full"
+        >
+          <Button
+            variant="commit"
+            disabled={disabled || !canBranch}
+            loading={busy === BUSY.branch}
+            loadingLabel="Branching"
+            onClick={() => onBranch(premise.trim())}
+          >
+            Branch New Timeline
+          </Button>
+        </motion.div>
+
+        {/* Why the button is dark, said where the button is. */}
+        {!canBranch && !busy && (
+          <p
+            id={`${ids}-why`}
+            className="mt-2 font-sans text-[11px] leading-snug text-ash/55"
+          >
+            Describe the change above and this becomes available.
+          </p>
+        )}
+      </div>
 
       <Button
         variant="danger"
