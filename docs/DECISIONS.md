@@ -419,3 +419,24 @@ the craft; these are the differences, closed.
   768px screen; both are one line now.
 - **The ledger stands down while an event is open.** It exists to use the rail's spare height,
   and with a panel in the rail there is none.
+
+## Phase 9b - the navigation column
+
+Same treatment as the panel, on the other side. The nav read as three buttons dropped on a
+green field; the reference is a column of chrome.
+
+- **The rows are one stack, full-bleed to the rail.** They were inset with a gutter either side
+  and each carried its own two-pixel border, which is what made them look detached. Now they
+  run edge to rail, divided by hairlines, with one rule above the first and below the last.
+- **The active state moves type and an edge bar, never a border.** Swapping a 2px border on and
+  off shifted the label by a pixel on every selection, which the eye reads as a twitch. The row
+  gets brighter type, a four-pixel gold edge, and the arrow on the rail.
+- **The arrow points back into its row.** It used to be a 46px chevron pointing outward across
+  the canvas edge, which fought the painting; the reference has a small one seated on the rail.
+- **The corner notch is a solid stepped shape and the foot carries a matching stripe.** The
+  notch used to draw as a thin stray diagonal that read as a rendering artefact. A filled wedge
+  was tried at the foot first and read as a dropped triangle - what the reference has is a line
+  running off the rail.
+- **The identity mark has shoulders.** Horns and a head with nothing under them read as a
+  mushroom at every size. `HornBadge` also grew a `bare` mode: inside a struck medallion its
+  own ring sat inside the medallion's ring and the mark read as a target.

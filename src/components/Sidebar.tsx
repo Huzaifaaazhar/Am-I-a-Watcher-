@@ -21,18 +21,18 @@ const NAV: Array<{ key: View; label: string }> = [
 ];
 
 /**
- * Left navigation: green ground, near-black blocks with gold type, a gold
- * diagonal notched into the top-right corner and a chevron on the active row
- * that bites into the canvas.
+ * Left navigation.
  *
- * Every block is the same object. They used to size themselves to their own
- * text, so "Branches" was a short box between two tall ones and the column
- * read as three separately positioned buttons; now one fixed height, one
- * padding, one border weight, one gap, and the labels are centred in it.
+ * The rows are one stack, not three buttons. They used to be inset blocks
+ * floating on the green with a gutter either side, each carrying its own
+ * two-pixel border - which read as three things dropped on a field rather
+ * than as a column of chrome. Now they run from the left edge to the gold
+ * rail, divided by hairlines, and the only thing that moves between states is
+ * the active row: brighter type, a gold edge, and the arrow on the rail.
  *
- * The gold rail down its right edge is the same line the diagonal notch at
- * the top runs into, and it is what frames the canvas rather than leaving the
- * painting to start against bare green.
+ * The rail down the right edge is continuous with the stepped notch at the
+ * top and the diagonal at the foot. It frames the canvas instead of letting
+ * the painting start against bare green.
  *
  * Below `lg` it is an off-canvas drawer. It used to dock at `md`, but at 768
  * a docked rail plus the event panel left the canvas a 168px strip - the
@@ -51,26 +51,27 @@ export default function Sidebar({ view, onSelect, stats, open, onClose }: Props)
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-[244px] flex-col bg-hud-green pl-safe-l pt-safe-t shadow-[8px_0_32px_-12px_rgba(0,0,0,0.8)] transition-transform duration-300 ease-out lg:relative lg:z-30 lg:w-[228px] lg:translate-x-0 lg:border-r-2 lg:border-brass/60 lg:pt-0 lg:shadow-none xl:w-[252px] 2xl:w-[292px] ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-[244px] flex-col overflow-hidden bg-hud-green pl-safe-l pt-safe-t shadow-[8px_0_32px_-12px_rgba(0,0,0,0.8)] transition-transform duration-300 ease-out lg:relative lg:z-30 lg:w-[228px] lg:translate-x-0 lg:border-r-2 lg:border-brass/60 lg:pt-0 lg:shadow-none xl:w-[252px] 2xl:w-[292px] ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        {/* Gold diagonal notched into the top-right corner. */}
+        {/* The stepped corner. A solid gold shape that the rail runs out of,
+            rather than the thin stray diagonal this used to draw. */}
         <svg
-          className="pointer-events-none absolute -right-px top-0 h-[92px] w-[92px]"
-          viewBox="0 0 104 104"
+          className="pointer-events-none absolute -right-px top-0 h-[56px] w-[112px]"
+          viewBox="0 0 112 56"
           preserveAspectRatio="none"
           aria-hidden
         >
-          <polygon points="0,0 104,0 104,22 34,22 0,78" fill="#E8C34A" />
-          <polygon points="0,0 104,0 104,11 40,11 6,55" fill="#0B4A34" />
+          <polygon points="112,0 112,56 98,56 98,13 34,13 0,0" fill="#E8C34A" />
         </svg>
 
-        <nav className="relative flex flex-col gap-3 px-4 pt-7 md:pt-8">
-          {NAV.map(({ key, label }) => {
+        <nav className="relative mt-[62px] border-y border-brass/45">
+          {NAV.map(({ key, label }, i) => {
             const active = view === key;
             return (
               <div key={key} className="relative">
+                {i > 0 && <div className="h-px bg-brass/45" />}
                 <button
                   type="button"
                   aria-current={active ? "page" : undefined}
@@ -78,22 +79,30 @@ export default function Sidebar({ view, onSelect, stats, open, onClose }: Props)
                     onSelect(key);
                     onClose();
                   }}
-                  className={`flex h-[68px] w-full items-center border-2 bg-hud-black px-4 text-left font-sans text-[17px] font-extrabold uppercase leading-[1.08] tracking-[0.01em] transition-colors md:h-[72px] md:px-5 md:text-[19px] 2xl:h-[84px] 2xl:text-[22px] ${
-                    active
-                      ? "border-brass text-brass"
-                      : "border-weave/40 text-brass/85 hover:border-brass/70 hover:text-brass"
+                  className={`flex h-[84px] w-full items-center bg-hud-black pl-6 pr-7 text-left font-sans text-[19px] font-extrabold uppercase leading-[1.08] tracking-[0.01em] transition-colors md:h-[88px] md:text-[21px] 2xl:h-[96px] 2xl:text-[23px] ${
+                    active ? "text-brass" : "text-brass/70 hover:text-brass"
                   }`}
                 >
+                  {/* The active edge. A four-pixel bar, not a border swap:
+                      swapping borders moved the text by a pixel on every
+                      selection, which the eye reads as a twitch. */}
+                  <span
+                    aria-hidden
+                    className={`absolute inset-y-0 left-0 w-1 transition-colors ${
+                      active ? "bg-brass" : "bg-transparent"
+                    }`}
+                  />
                   <span className="whitespace-pre-line">{label}</span>
                 </button>
+
+                {/* The arrow sits on the rail and points back into its row. */}
                 {active && (
                   <svg
-                    className="pointer-events-none absolute -right-[18px] top-0 hidden h-full w-[22px] lg:block"
-                    viewBox="0 0 22 100"
-                    preserveAspectRatio="none"
+                    className="pointer-events-none absolute -right-[9px] top-1/2 hidden h-[30px] w-[16px] -translate-y-1/2 lg:block"
+                    viewBox="0 0 16 30"
                     aria-hidden
                   >
-                    <polygon points="0,0 22,50 0,100" fill="#E8C34A" />
+                    <polygon points="16,0 16,30 0,15" fill="#E8C34A" />
                   </svg>
                 )}
               </div>
@@ -106,7 +115,7 @@ export default function Sidebar({ view, onSelect, stats, open, onClose }: Props)
           behind the dock, and the column under the nav was a tall empty
           green field; this is the one place that readout can live.
         */}
-        <dl className="mt-6 space-y-2 px-4 lg:hidden">
+        <dl className="mt-6 space-y-2 px-6 lg:hidden">
           {[
             ["Events held", String(stats.events)],
             ["Deviations", String(stats.deviations)],
@@ -126,34 +135,35 @@ export default function Sidebar({ view, onSelect, stats, open, onClose }: Props)
           ))}
         </dl>
 
-        {/*
-          The custodian's mark. It was a 44px pip lost in a tall empty column;
-          at this size it is the thing that closes the sidebar off, which is
-          what it is doing in the reference.
-        */}
-        <div className="relative mt-auto flex flex-col items-center gap-3 px-4 pb-[calc(2.25rem+var(--safe-bottom))] pt-8">
-          <span className="h-px w-16 bg-brass/30" />
+        {/* A stripe at the foot, mirroring the notch at the head. A filled
+            wedge was tried first and read as a dropped triangle; what the
+            reference has is a line, running off the rail. */}
+        <svg
+          className="pointer-events-none absolute -right-px bottom-0 hidden h-[150px] w-[112px] lg:block"
+          viewBox="0 0 112 150"
+          preserveAspectRatio="none"
+          aria-hidden
+        >
+          <polygon points="112,34 112,54 26,150 6,150" fill="#E8C34A" />
+        </svg>
+
+        <div className="relative mt-auto flex flex-col items-center gap-3 px-4 pb-[calc(2.5rem+var(--safe-bottom))] pt-8">
           {/*
             A struck disc: solid brass with the silhouette cut out of it, and
             a darker ring inside the rim. It was a thin gold outline on a
             near-black fill, which at this size read as an empty slot.
           */}
-          <div className="relative flex h-[84px] w-[84px] items-center justify-center rounded-full bg-brass shadow-[0_4px_14px_-6px_rgba(0,0,0,0.9)] 2xl:h-[96px] 2xl:w-[96px]">
-            <span className="absolute inset-[7px] rounded-full border border-hud-black/40" />
+          <div className="relative flex h-[86px] w-[86px] items-center justify-center rounded-full bg-brass shadow-[0_4px_14px_-6px_rgba(0,0,0,0.9)] 2xl:h-[98px] 2xl:w-[98px]">
+            <span className="absolute inset-[6px] rounded-full border border-hud-black/35" />
+            <HornBadge size={56} bare ringClassName="text-hud-black" className="2xl:hidden" />
             <HornBadge
-              size={54}
-              className="2xl:hidden"
+              size={64}
+              bare
               ringClassName="text-hud-black"
-              fillClassName="text-brass"
-            />
-            <HornBadge
-              size={62}
               className="hidden 2xl:block"
-              ringClassName="text-hud-black"
-              fillClassName="text-brass"
             />
           </div>
-          <span className="font-sans text-[10px] font-bold uppercase tracking-[0.24em] text-brass/60">
+          <span className="font-sans text-[10px] font-bold uppercase tracking-[0.24em] text-brass/55">
             Custodian
           </span>
         </div>

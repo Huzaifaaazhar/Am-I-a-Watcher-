@@ -1,21 +1,29 @@
 "use client";
 
 /**
- * Horned-silhouette avatar glyph.
+ * Horned-silhouette identity mark.
  *
- * An original minimalist mark - a head silhouette topped by two curved horns
- * inside a ring - not traced from any film asset or logo. Used everywhere the
- * UI needs a "custodian" identity mark: the sidebar badge, the profile pip.
+ * An original minimalist bust - shoulders, a head, two curved horns rising
+ * off it. Not traced from any film asset or logo. It used to be a head and
+ * horns with nothing under them, which at any size read as a mushroom rather
+ * than as somebody; the shoulders are what make it a person.
+ *
+ * `bare` draws the silhouette alone, for when the caller is already providing
+ * the disc behind it. Without that, a struck medallion ended up with the
+ * badge's own ring inside the medallion's ring and the mark read as a target.
  */
 export default function HornBadge({
   size = 40,
   ringClassName = "text-brass",
   fillClassName = "text-abyss",
+  bare = false,
   className = "",
 }: {
   size?: number;
   ringClassName?: string;
   fillClassName?: string;
+  /** Skip the enclosing circle; draw only the silhouette. */
+  bare?: boolean;
   /** For showing one size and hiding another at a breakpoint. */
   className?: string;
 }) {
@@ -29,25 +37,36 @@ export default function HornBadge({
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden
     >
-      <circle cx="20" cy="20" r="19" className={ringClassName} stroke="currentColor" strokeWidth="1.5" />
-      <circle cx="20" cy="20" r="19" className={fillClassName} fill="currentColor" fillOpacity="0.92" />
-      {/* Horns - two asymmetric curved sweeps rising off a rounded head. */}
-      <path
-        d="M14 17 C 10 11, 9 5, 12.5 2 C 12 7, 13.5 12, 16.5 15.5 Z"
-        className={ringClassName}
-        fill="currentColor"
-      />
-      <path
-        d="M26 17 C 30 11, 31 5, 27.5 2 C 28 7, 26.5 12, 23.5 15.5 Z"
-        className={ringClassName}
-        fill="currentColor"
-      />
-      {/* Head silhouette. */}
-      <path
-        d="M20 14 C 24.5 14, 27 17.2, 27 21.3 C 27 25.5, 24 29.5, 20 31.5 C 16 29.5, 13 25.5, 13 21.3 C 13 17.2, 15.5 14, 20 14 Z"
-        className={ringClassName}
-        fill="currentColor"
-      />
+      {!bare && (
+        <>
+          <circle
+            cx="20"
+            cy="20"
+            r="19"
+            className={ringClassName}
+            stroke="currentColor"
+            strokeWidth="1.5"
+          />
+          <circle
+            cx="20"
+            cy="20"
+            r="19"
+            className={fillClassName}
+            fill="currentColor"
+            fillOpacity="0.92"
+          />
+        </>
+      )}
+
+      <g className={ringClassName} fill="currentColor">
+        {/* Horns - two asymmetric curved sweeps rising off the head. */}
+        <path d="M14.6 16.4 C 10.4 11.4, 9.4 5.6, 12.6 2.4 C 12.2 7.4, 13.8 12, 16.8 15.2 Z" />
+        <path d="M25.4 16.4 C 29.6 11.4, 30.6 5.6, 27.4 2.4 C 27.8 7.4, 26.2 12, 23.2 15.2 Z" />
+        {/* Head. */}
+        <ellipse cx="20" cy="19.4" rx="5.3" ry="6.4" />
+        {/* Shoulders. The mark was a head on nothing before these. */}
+        <path d="M20 25.4 C 26.2 25.4, 31.4 29.6, 32.6 35.8 C 28.8 37.6, 24.5 38.4, 20 38.4 C 15.5 38.4, 11.2 37.6, 7.4 35.8 C 8.6 29.6, 13.8 25.4, 20 25.4 Z" />
+      </g>
     </svg>
   );
 }
