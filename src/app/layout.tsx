@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Bitter, JetBrains_Mono } from "next/font/google";
+import { Archivo, JetBrains_Mono } from "next/font/google";
 
 import "./globals.css";
 
@@ -16,15 +16,30 @@ import "./globals.css";
  * `display: swap` so text is readable immediately in the fallback and reflows
  * once, rather than holding the first paint for a webfont.
  *
+ * Archivo is the interface. It is a grotesque cut for headlines and UI, which
+ * is what the reference's chrome is set in, and it carries the whole product:
+ * `--font-sans` for every label and `--font-display` for the two places that
+ * want a bigger version of the same voice. One family, one download.
+ *
+ * It replaced a slab that was only ever used three times, and - far worse -
+ * `font-sans` was never wired to anything at all. Forty-six uses of it across
+ * the interface were resolving to Tailwind's default stack, so most of this
+ * product was shipping in whatever UI font the visitor's OS happened to have.
+ * The build rules forbid shipping default browser fonts; this was doing it
+ * everywhere and the type never matched the reference because none had been
+ * chosen.
+ *
+ * No weight list: Archivo is a variable font, so one file covers 100-900 and
+ * the semibold/bold/extrabold already in the markup all resolve.
+ *
  * Both faces are OFL-licensed. No official or copyrighted title font is
  * reproduced anywhere in this project.
  */
-const bitter = Bitter({
+const archivo = Archivo({
   subsets: ["latin"],
-  weight: ["600", "800"],
   display: "swap",
-  variable: "--font-display",
-  fallback: ["Roboto Slab", "Georgia", "Times New Roman", "serif"],
+  variable: "--font-sans",
+  fallback: ["Helvetica Neue", "Arial", "sans-serif"],
 });
 
 const jetbrains = JetBrains_Mono({
@@ -57,7 +72,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${bitter.variable} ${jetbrains.variable}`}>
+    <html lang="en" className={`${archivo.variable} ${jetbrains.variable}`}>
       <body className="bg-void text-ash antialiased">{children}</body>
     </html>
   );

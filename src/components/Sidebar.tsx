@@ -51,7 +51,7 @@ export default function Sidebar({ view, onSelect, stats, open, onClose }: Props)
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-[244px] flex-col overflow-hidden bg-hud-green pl-safe-l pt-safe-t shadow-[8px_0_32px_-12px_rgba(0,0,0,0.8)] transition-transform duration-300 ease-out lg:relative lg:z-30 lg:w-[228px] lg:translate-x-0 lg:border-r-2 lg:border-brass/60 lg:pt-0 lg:shadow-none xl:w-[252px] 2xl:w-[292px] ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-[244px] flex-col overflow-hidden bg-gradient-to-b from-hud-panel via-hud-green to-hud-green-dark pl-safe-l pt-safe-t shadow-[8px_0_32px_-12px_rgba(0,0,0,0.8)] transition-transform duration-300 ease-out lg:relative lg:z-30 lg:w-[228px] lg:translate-x-0 lg:border-r-2 lg:border-brass/60 lg:pt-0 lg:shadow-none xl:w-[252px] 2xl:w-[292px] ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -79,7 +79,7 @@ export default function Sidebar({ view, onSelect, stats, open, onClose }: Props)
                     onSelect(key);
                     onClose();
                   }}
-                  className={`flex h-[84px] w-full items-center bg-hud-black pl-6 pr-7 text-left font-sans text-[19px] font-extrabold uppercase leading-[1.08] tracking-[0.01em] transition-colors md:h-[88px] md:text-[21px] 2xl:h-[96px] 2xl:text-[23px] ${
+                  className={`relative flex h-[88px] w-full items-center overflow-hidden bg-hud-black pl-6 pr-7 text-left font-sans text-[22px] font-extrabold uppercase leading-[1.04] tracking-[-0.012em] transition-colors before:pointer-events-none before:absolute before:inset-0 before:bg-gradient-to-b before:from-white/[0.055] before:to-transparent before:to-55% md:h-[94px] md:text-[24px] 2xl:h-[104px] 2xl:text-[27px] ${
                     active ? "text-brass" : "text-brass/70 hover:text-brass"
                   }`}
                 >
@@ -135,6 +135,23 @@ export default function Sidebar({ view, onSelect, stats, open, onClose }: Props)
           ))}
         </dl>
 
+        {/* The rail steps inward for a stretch, then returns to the edge.
+            It is the detail that stops a 700px gold line reading as a border
+            somebody forgot to style. Placed clear of the nav stack: its top
+            diagonal was cutting across the last row's right edge. */}
+        <svg
+          className="pointer-events-none absolute -right-px top-[56%] hidden h-[170px] w-[20px] lg:block"
+          viewBox="0 0 20 190"
+          aria-hidden
+        >
+          <polyline
+            points="19,0 19,18 6,34 6,136 19,152 19,170"
+            fill="none"
+            stroke="#E8C34A"
+            strokeWidth="2"
+          />
+        </svg>
+
         {/* A stripe at the foot, mirroring the notch at the head. A filled
             wedge was tried first and read as a dropped triangle; what the
             reference has is a line, running off the rail. */}
@@ -147,25 +164,22 @@ export default function Sidebar({ view, onSelect, stats, open, onClose }: Props)
           <polygon points="112,34 112,54 26,150 6,150" fill="#E8C34A" />
         </svg>
 
-        <div className="relative mt-auto flex flex-col items-center gap-3 px-4 pb-[calc(2.5rem+var(--safe-bottom))] pt-8">
+        <div className="relative mt-auto flex flex-col items-center px-4 pb-[calc(2.75rem+var(--safe-bottom))] pt-8">
           {/*
             A struck disc: solid brass with the silhouette cut out of it, and
             a darker ring inside the rim. It was a thin gold outline on a
             near-black fill, which at this size read as an empty slot.
           */}
-          <div className="relative flex h-[86px] w-[86px] items-center justify-center rounded-full bg-brass shadow-[0_4px_14px_-6px_rgba(0,0,0,0.9)] 2xl:h-[98px] 2xl:w-[98px]">
-            <span className="absolute inset-[6px] rounded-full border border-hud-black/35" />
-            <HornBadge size={56} bare ringClassName="text-hud-black" className="2xl:hidden" />
+          <div className="relative flex h-[112px] w-[112px] items-center justify-center rounded-full bg-brass shadow-[0_6px_20px_-8px_rgba(0,0,0,0.95)] 2xl:h-[126px] 2xl:w-[126px]">
+            <span className="absolute inset-[8px] rounded-full border border-hud-black/35" />
+            <HornBadge size={74} bare ringClassName="text-hud-black" className="2xl:hidden" />
             <HornBadge
-              size={64}
+              size={84}
               bare
               ringClassName="text-hud-black"
               className="hidden 2xl:block"
             />
           </div>
-          <span className="font-sans text-[10px] font-bold uppercase tracking-[0.24em] text-brass/55">
-            Custodian
-          </span>
         </div>
       </aside>
     </>

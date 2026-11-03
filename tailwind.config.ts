@@ -106,8 +106,17 @@ const config: Config = {
         "safe-l": "var(--safe-left)",
       },
       fontFamily: {
-        // Freely-licensed faces only. No official/copyrighted title fonts.
-        display: ["var(--font-display)", "Georgia", "serif"],
+        /*
+         * Freely-licensed faces only. No official/copyrighted title fonts.
+         *
+         * `sans` is declared here deliberately: without it every `font-sans`
+         * in the product - and there are dozens - fell through to Tailwind's
+         * default system stack, so the interface rendered in whatever the
+         * visitor's OS supplied. Display is the same family, not a second
+         * one; the chrome wants one voice at two sizes.
+         */
+        sans: ["var(--font-sans)", "Helvetica Neue", "Arial", "sans-serif"],
+        display: ["var(--font-sans)", "Helvetica Neue", "Arial", "sans-serif"],
         mono: ["var(--font-mono)", "ui-monospace", "monospace"],
       },
       boxShadow: {

@@ -440,3 +440,24 @@ green field; the reference is a column of chrome.
 - **The identity mark has shoulders.** Horns and a head with nothing under them read as a
   mushroom at every size. `HornBadge` also grew a `bare` mode: inside a struck medallion its
   own ring sat inside the medallion's ring and the mark read as a target.
+
+## Phase 9c - the typeface nobody chose, and the last five details
+
+- **`font-sans` was never wired to anything.** Forty-six uses of it across the interface were
+  resolving to Tailwind's default system stack, so most of this product has been rendering in
+  whatever UI font the visitor's OS supplied. That is the rule against shipping default browser
+  fonts, broken everywhere, and it is the single biggest reason the type never matched the
+  reference: no face had been picked. Archivo now carries `sans` and `display` both - one
+  grotesque at two sizes, variable so one file covers every weight in the markup.
+- **The slab went with it.** Bitter was loaded on every page for three headings. One family is
+  one download and one voice.
+- **The column takes a vertical gradient** (`hud-panel` to `hud-green-dark`) instead of one flat
+  green, and the rows a faint top sheen. Flat black on flat green is what made the chrome look
+  printed rather than lit.
+- **The rail steps inward for a stretch** between the nav and the mark. It is the detail that
+  stops a 700px gold line reading as a border somebody forgot to style - and it was placed
+  clear of the stack, because its first position cut across the last row's right edge.
+- **The mark is 112px and uncaptioned.** The caption was mine, not the reference's, and at this
+  size the disc does not need telling you what it is.
+- **The labels are larger and tighter** (22/24/27px, -0.012em). The reference sets its caps
+  tight; ours were at default tracking and read as a list rather than as signage.

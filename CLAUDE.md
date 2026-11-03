@@ -71,8 +71,14 @@ has one definition. The type scale is named by role, not size — `micro` `meta`
 `title` `display` `hero` `colossal` `monolith`. Headline line-height ~0.95, line length < 70ch.
 Uppercase + wide tracking for short labels only; sentence case beyond 4 words.
 
-Fonts: Bitter (display) + JetBrains Mono, both OFL, self-hosted via `next/font` — do not
-reintroduce a CDN link, the CSP no longer allows one.
+Fonts: Archivo (`sans` and `display`) + JetBrains Mono (`mono`), both OFL, self-hosted via
+`next/font` — do not reintroduce a CDN link, the CSP no longer allows one. Archivo is variable,
+so one file covers every weight.
+
+**`sans` must stay declared in `tailwind.config.ts`.** It was missing for most of this
+project's life, and the forty-six `font-sans` classes in the interface silently resolved to
+Tailwind's default system stack - the whole product rendering in whatever font the visitor's OS
+supplied, which is exactly the "no default browser fonts" rule being broken everywhere.
 
 Icons: `src/components/icons`, 24px grid, square caps, mitred joins. No icon library.
 Actions: `src/components/ui/Button` — never hand-roll a button's states again.
