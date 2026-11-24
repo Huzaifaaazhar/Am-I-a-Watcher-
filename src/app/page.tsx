@@ -258,7 +258,11 @@ function Custodian({ initial }: { initial: Timeline }) {
     if (!doomed?.anchor || doomed.nodes.length === 0) return;
     const nodeId = doomed.anchor.id;
     const branchLabel = doomed.label;
-    const doomedTitles = doomed.nodes.map((n) => n.title);
+    const allTitles = doomed.nodes.map((n) => n.title);
+    // The endpoint caps the list at 12 titles of 48 characters. The archive now
+    // holds longer titles and bigger boughs, and an over-limit body is a 400:
+    // the dissolve played, nothing was committed. Count honestly, send a sample.
+    const doomedTitles = allTitles.slice(0, 12).map((t) => t.slice(0, 48));
 
     setPruneTarget(null);
     setSelectedId(null);
@@ -277,7 +281,7 @@ function Custodian({ initial }: { initial: Timeline }) {
       // usually returns faster than the animation, which is the right way
       // round: the picture is never waiting on the prose.
       await new Promise((r) => setTimeout(r, PRUNE_DISSOLVE_MS));
-      const delta = Math.max(5, Math.min(25, 6 + doomedTitles.length * 2));
+      const delta = Math.max(5, Math.min(25, 6 + allTitles.length * 2));
       setTimeline((t) => applyPrune(t, nodeId, res.epitaph, delta).next);
     } catch (err) {
       note("error", err instanceof Error ? err.message : "Prune failed.");

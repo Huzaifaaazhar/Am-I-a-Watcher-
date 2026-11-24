@@ -461,3 +461,4 @@ green field; the reference is a column of chrome.
   size the disc does not need telling you what it is.
 - **The labels are larger and tighter** (22/24/27px, -0.012em). The reference sets its caps
   tight; ours were at default tracking and read as a list rather than as signage.
+- Prune sends at most 12 titles, clipped to 48 chars: the API rejects more with a 400, which silently aborted every large prune once the archive grew to 74 events (the harness stubs the API, so it never saw it).
